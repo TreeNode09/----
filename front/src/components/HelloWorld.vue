@@ -1,64 +1,73 @@
-
-
 <template>
-  <h1>{{ msg }}</h1>
-
-  <div class="card">
-    <button type="button" @click="count++">count is {{ count }}</button>
-    <button @click="getMessage">点我!</button>
-    <h1>{{ message }}</h1>
-    <p>
-      Edit
-      <code>components/HelloWorld.vue</code> to test HMR
-    </p>
-  </div>
-
-  <p>
-    Check out
-    <a href="https://vuejs.org/guide/quick-start.html#local" target="_blank"
-      >create-vue</a
-    >, the official Vue + Vite starter
-  </p>
-  <p>
-    Learn more about IDE Support for Vue in the
-    <a
-      href="https://vuejs.org/guide/scaling-up/tooling.html#ide-support"
-      target="_blank"
-      >Vue Docs Scaling up Guide</a
-    >.
-  </p>
-  <p class="read-the-docs">Click on the Vite and Vue logos to learn more</p>
+<el-upload action :http-request="uploadFile"
+:before-upload="beforeUpload" :on-remove="handleRemove" :on-exceed="handleExceed"
+v-model:file-list="fileList" :limit=1 list-type="picture">
+    <el-button type="primary">Click to upload</el-button>
+</el-upload>
+<h1>{{ message }}</h1>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { handleError, ref } from 'vue'
 import axios from 'axios'
 
-defineProps({
-  msg: String,
-})
-
-const count = ref(0)
 const message = ref('Hi, Vite!')
 var showing = false
 
 function getMessage(){
-  showing = !showing
-  if(showing === true){
-      axios.get('/' 
-    ).then(response => {
-        message.value = response.data
-    })
-    .catch(error => {alert(error)})
-  }
-  else{
-    message.value = 'Hi, Vite!'
-  }
+    showing = !showing
+    if(showing === true){
+        axios.get('/' 
+        ).then(response => {
+            message.value = response.data
+        })
+        .catch(error => {alert(error)})
+    }
+     else{
+        message.value = 'Hi, Vite!'
+    }
+}
+
+const fileList = ref([])
+const formats = ['png', 'jpg', 'jpeg']
+
+function beforeUpload(file){
+    if (file.type != "" || file.type != null || file.type != undefined){
+		const format = file.name.replace(/.+\./, "").toLowerCase()
+        if(formats.includes(format) === false){
+            alert("仅支持png、jpg、jpeg格式图片!")
+            return false
+        }
+		if (file.size / 1024 / 1024 > 1) {
+			alert("上传文件大小不能超过 1MB!")
+			return false
+		}
+        return true
+    }
+    alert("文件格式有误!");
+    return false
+}
+
+function handleRemove(){
+    message.value = 'Try again!'
+}
+
+function handleExceed(){
+    alert("仅能上传1张图片!")
+    return
+}
+
+function uploadFile(item){
+    let data = new FormData()
+    data.append("file", item.file)
+    axios.post('/upload', data
+        ).then(response => {
+            message.value = response.data
+        })
+        .catch(error => {alert(error)})
 }
 </script>
 
 <style scoped>
-.read-the-docs {
-  color: #888;
-}
+
 </style>
