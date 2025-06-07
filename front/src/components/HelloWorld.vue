@@ -14,20 +14,6 @@ import axios from 'axios'
 const message = ref('Hi, Vite!')
 var showing = false
 
-function getMessage(){
-    showing = !showing
-    if(showing === true){
-        axios.get('/' 
-        ).then(response => {
-            message.value = response.data
-        })
-        .catch(error => {alert(error)})
-    }
-     else{
-        message.value = 'Hi, Vite!'
-    }
-}
-
 const fileList = ref([])
 const formats = ['png', 'jpg', 'jpeg']
 
