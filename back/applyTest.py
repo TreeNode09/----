@@ -103,11 +103,11 @@ if __name__ == '__main__':
         classes=len(CLASSES),
         activation=ACTIVATION,
     )
-    model.load_state_dict(torch.load('./best_model.pth', map_location=DEVICE))
+    model.load_state_dict(torch.load('../best_model.pth', map_location=DEVICE))
     model = model.to(DEVICE)
     model.eval()
 
-    VIDEO_DIR = './data/video/test.mp4'
+    VIDEO_DIR = '../data/video/test.mp4'
     cap = cv2.VideoCapture(VIDEO_DIR)
 
     # 固定窗口大小
