@@ -1,9 +1,9 @@
 <template>
-<HelloWorld/>
+<UploadVideo />
 </template>
 
 <script setup>
-import HelloWorld from './components/HelloWorld.vue';
+import UploadVideo from './components/UploadVideo.vue';
 </script>
 
 <style scoped>
