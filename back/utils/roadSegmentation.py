@@ -62,10 +62,11 @@ def get_preprocessing(preprocessing_fn):
     return albu.Compose(_transform)
 
 #得到处理后的图像
-def getOutput(image_vis, predicted_mask):
-    predicted_mask = (predicted_mask * 255).astype(np.uint8)
+def getOutput(image, predicted_mask):
+    image = cv2.resize(image,(480, 384)).astype(np.uint8)
+    predicted_mask = (predicted_mask*255).astype(np.uint8)
     inverted = cv2.bitwise_not(predicted_mask)
-    back_out = cv2.bitwise_and(image_vis, image_vis, mask=inverted)
+    back_out = cv2.bitwise_and(image, image, mask=inverted)
     array = np.array([0,1,0], dtype=np.uint8)
     predicted_mask = cv2.cvtColor(predicted_mask, cv2.COLOR_GRAY2BGR)
     green_out = predicted_mask * array
@@ -73,7 +74,6 @@ def getOutput(image_vis, predicted_mask):
     return output
 
 # ---------------------------------------------------------------
-
 ENCODER = 'se_resnext50_32x4d'
 ENCODER_WEIGHTS = 'imagenet'
 CLASSES = ['road']
@@ -98,6 +98,7 @@ model.eval()
 val_aug = get_validation_augmentation()
 preproc = get_preprocessing(preprocessing_fn)
 
+
 def process(img):
     # 只做一次增强和预处理
     predict_img = process_image(img, augmentation=val_aug, preprocessing=preproc)
@@ -107,7 +108,8 @@ def process(img):
         pr_mask = (pr_mask.squeeze().cpu().numpy().round())
 
     # 同时显示原视频帧和分割结果
-    return  getOutput(
-        pr_mask / 255.0,
-        raw_img=img
-    )
+    return  getOutput(img,pr_mask)
+
+if __name__ == "__main__":
+    img = cv2.imread('ImgDetect/back/utils/image.png',1)
+    output = process(img)
