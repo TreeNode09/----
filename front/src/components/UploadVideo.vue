@@ -4,7 +4,7 @@
     class="upload-video"
     action
     :http-request="uploadVideo"
-    multiple="fasle"
+    :multiple="false"
     :on-preview="handlePreview"
     :on-remove="handleRemove"
     :before-remove="beforeRemove"
@@ -18,6 +18,7 @@
       </div>
     </template>
   </el-upload>
+  <img src="http://127.0.0.1:5000/video-feed">
 </template>
 
 <script lang="ts" setup>
@@ -26,8 +27,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadProps, UploadUserFile } from 'element-plus'
 import axios from 'axios'
 
-const fileList = ref<UploadUserFile[]>([
-])
+const fileList = ref<UploadUserFile[]>([])
 const message = ref('')
 
 function uploadVideo(item){
