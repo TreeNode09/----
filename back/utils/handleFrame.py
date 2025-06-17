@@ -75,8 +75,9 @@ def process_mask(mask):
     cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
     return mask
 
-img = cv2.imread("ImgDetect\\back\\static\\image.png")
-if img is None:
-    print("Image not found")
-else:
-    handle_frame(img)
+if __name__ == "__main__":
+    img = cv2.imread("ImgDetect\\back\\static\\image.png")
+    if img is None:
+        print("Image not found")
+    else:
+        handle_frame(img)
