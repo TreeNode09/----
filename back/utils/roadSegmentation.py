@@ -62,16 +62,16 @@ def get_preprocessing(preprocessing_fn):
     return albu.Compose(_transform)
 
 #得到处理后的图像
-def getOutput(image, predicted_mask):
-    image = cv2.resize(image,(480, 384)).astype(np.uint8)
+def getMask(predicted_mask):
+    # image = cv2.resize(image,(480, 384)).astype(np.uint8)
     predicted_mask = (predicted_mask*255).astype(np.uint8)
-    inverted = cv2.bitwise_not(predicted_mask)
-    back_out = cv2.bitwise_and(image, image, mask=inverted)
-    array = np.array([0,1,0], dtype=np.uint8)
-    predicted_mask = cv2.cvtColor(predicted_mask, cv2.COLOR_GRAY2BGR)
-    green_out = predicted_mask * array
-    output = cv2.add(back_out, green_out)
-    return output
+    # inverted = cv2.bitwise_not(predicted_mask)
+    # back_out = cv2.bitwise_and(image, image, mask=inverted)
+    # array = np.array([0,1,0], dtype=np.uint8)
+    # predicted_mask = cv2.cvtColor(predicted_mask, cv2.COLOR_GRAY2BGR)
+    # green_out = predicted_mask * array
+    # # output = cv2.add(back_out, green_out)
+    return predicted_mask
 
 # ---------------------------------------------------------------
 ENCODER = 'se_resnext50_32x4d'
@@ -108,7 +108,7 @@ def process(img):
         pr_mask = (pr_mask.squeeze().cpu().numpy().round())
 
     # 同时显示原视频帧和分割结果
-    return  getOutput(img,pr_mask)
+    return  getMask(pr_mask)
 
 if __name__ == "__main__":
     img = cv2.imread('ImgDetect/back/utils/image.png',1)
