@@ -8,6 +8,7 @@ import cv2
 import os
 import numpy as np
 import time
+import pickle
 
 app = Flask(__name__)
 CORS(app)
@@ -109,42 +110,43 @@ def handle_connect():
 def handle_disconnect():
     print('客户端断开连接:', request.sid)
 
-fps = 0
-begin = time.time()
+@socketio.on('sendJunk')
+def handle_junk(data):
+    result = ''.join(reversed(data['data']))
+    resultData = {
+        'data': result
+    }
+    emit('yourJunk', resultData)
+
 @socketio.on('sendCamera')
 def handle_process_frame(data):
-    global fps, begin
-    current = time.time()
-    print(current - begin)
-    if current - begin > 1.0:
-        begin = current
-        print("FPS:", fps)
-        fps = 0
-        
-    image_data = data['imageData']  # 获取图像数据
+
+    image_data = data['imageData']
+    image_blob = image_data['data']  # 获取图像数据
     width = image_data['width']
     height = image_data['height']
-    # print(data['frameId'])
+    image_buffer = np.frombuffer(image_blob, dtype=np.uint8)
+    print(data['frameId'])
 
-    image = np.array(image_data['data'], dtype=np.uint8)    # 转到openCV的图片格式
-    image = image.reshape((height, width, 4))
+    image = cv2.imdecode(image_buffer, -1)   # 转到openCV的图片格式
+    image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     
     result = process(image)
     
-    result = cv2.cvtColor(result, cv2.COLOR_BGR2RGBA)  # 转换回RGBA
+    result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA
+    height, width = result.shape[:2]
+    _, compressed = cv2.imencode('.webp', result, [cv2.IMWRITE_WEBP_QUALITY, 30])
 
     resultData = {
         'frameId': data['frameId'],
         'imageData': {
-            'data': result.flatten().tolist(),
+            'data': compressed.tobytes(),
             'width': width,
             'height': height
         }
     }
     emit('sendFrame', resultData)
-    print("After Emit:", time.time() - current)
-    fps += 1
 
 if __name__ == '__main__':
     # app.run(debug=False)
