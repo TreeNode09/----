@@ -8,7 +8,6 @@ import cv2
 import os
 import numpy as np
 import time
-import pickle
 
 app = Flask(__name__)
 CORS(app)

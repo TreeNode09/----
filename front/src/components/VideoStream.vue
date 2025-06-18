@@ -1,26 +1,55 @@
 <template>
-<video ref="camera" autoplay playinline></video>
-<img id="frame" :width="frameInfo.width" :height="frameInfo.height"/>
-<h2>{{ delay.toFixed(2) }}</h2>
-<h3>{{ junkText }}</h3>
-<div>{{ cameraFPS }} : {{ frameFPS }}</div>
-<el-button v-if="!isProcessing" type="success" @click="startProcessing">开始</el-button>
-<el-button v-if="isProcessing" type="danger" @click="stopProcessing">停止</el-button>
-
+<video ref="camera" autoplay playinline style="display: none;"></video>
+<el-container>
+  <el-aside :width="frameInfo.width">
+    <img id="frame" :width="frameInfo.width" :height="frameInfo.height"/>
+    <div style="margin-top: 5px;">
+      <div style="width: 40%; display: inline-block;">
+        <div class="half">
+          <info-icon><camera-filled/></info-icon>
+          <media-info :type="cameraStat">{{ cameraMessage }}</media-info>
+        </div>
+        <div class="half">
+          <info-icon><upload-filled/></info-icon>
+          <media-info :type="socketStat">{{ socketMessage }}</media-info>        
+        </div>
+      </div>
+      <div style="width: 60%; display: inline-block;">
+        <div class="half">
+          <info-icon><timer/></info-icon> 延迟 <strong>{{ delay.toFixed(0) }}</strong>ms
+        </div>
+        <div class="half">
+          <info-icon><arrow-up-bold/></info-icon> <strong>{{ cameraFPS }}</strong>FPS&nbsp;/&nbsp;
+          <info-icon><arrow-down-bold/></info-icon> <strong>{{ frameFPS }}</strong>FPS
+        </div>
+      </div>
+    </div>
+  </el-aside>
+  <el-main style="width: 500px; padding: 0 20px;">
+    <el-button class="full" v-if="!isProcessing" type="success" @click="startProcessing">▶ 开始</el-button>
+    <el-button class="full" v-if="isProcessing" type="danger" @click="stopProcessing">◼ 停止</el-button>
+  </el-main>
+</el-container>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { io } from 'socket.io-client'
+import { ElNotification } from 'element-plus'
+import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold } from '@element-plus/icons-vue'
+
+import InfoIcon from './InfoIcon.vue'
+import MediaInfo from './MediaInfo.vue'
 
 const camera = ref(null)
 const isProcessing = ref(false)
 const cameraFPS = ref(0)
 const frameFPS = ref(0)
-const framesProcessed = ref(0)
 const delay = ref(0)
-const socketStatus = ref('未连接')
-const targetFPS = ref(20)
+const cameraStat = ref('off')
+const socketStat = ref('off')
+const cameraMessage = ref('未连接')
+const socketMessage = ref('未连接')
 
 const junkText = ref('')
 
@@ -28,8 +57,8 @@ let mediaStream = null
 let socket = null
 let cameraFPSCounter = 0
 let frameFPSCounter = 0
-let FPSInterval = null
-let frameCaptureInterval = null
+let cameraInterval = null  //记录帧率用的定时器
+let frameInterval = null
 let sendTimes = new Map()
 
 let cameraCanvas = null
@@ -37,6 +66,7 @@ let cameraCanvasContext = null
 let frame = null
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
+const targetFPS = 20  //传输的帧率
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
 const HOST_IP = "http://127.0.0.1:5000" //后端url
 
@@ -62,17 +92,16 @@ const initCamera = async () => {
         frameRate: { ideal: cameraInfo.frameRate }
       },
       audio: false
-    }
-    
+    }   
     mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
     
     if (camera.value) {
       camera.value.srcObject = mediaStream
+      updateCameraStat('ready', '已就绪')
     }
-    
     startFPSCounter()
   } catch (error) {
-    console.error('摄像头初始化失败:', error)
+    popNotification('error', '摄像头初始化失败' + error)
   }
 }
 
@@ -89,19 +118,20 @@ const initSocket = () => {
     })
     
     socket.on('connect', () => {
-      socketStatus.value = '已连接'
+      popNotification('success', 'WebSocket已连接')
+      updateSocketStat('ready', '已就绪')
     })
     
     socket.on('disconnect', () => {
-      socketStatus.value = '已断开'
       if (isProcessing.value === true) {
         stopProcessing()
+        updateSocketStat('off', '未连接')
       }
     })
     
     socket.on('connect_error', (error) => {
-      socketStatus.value = '连接错误'
-      console.error('WebSocket连接错误:', error)
+      popNotification('error', 'WebSocket连接错误' + error)
+      updateSocketStat('error', '连接错误')
     })
     
     //接收处理后的帧
@@ -134,18 +164,48 @@ const initSocket = () => {
     })
 
   } catch (error) {
-    console.error('WebSocket初始化失败:', error)
+    popNotification('error', 'WebSocket初始化失败' + error)
+    updateSocketStat('error', '初始化失败')
   }
+}
+
+const getTime = () => {
+  let time = new Date()
+  let hour = time.getHours()
+  let minute = time.getMinutes()
+  let second = time.getSeconds()
+  return hour + (minute < 10 ? ":0": ":") + minute + (second < 10 ? ":0": ":") + second
+}
+
+//在右侧弹出信息
+const popNotification = (type, message) => {
+  ElNotification({
+    type: type,
+    dangerouslyUseHTMLString: true,
+    message: '<div><strong>' + message + '</strong></div>' + getTime(),
+  })
+}
+
+//更新摄像机状态
+const updateCameraStat = (stat, message) => {
+  cameraStat.value = stat
+  cameraMessage.value = message
+}
+
+//更新WebSocket连接状态
+const updateSocketStat = (stat, message) => {
+  socketStat.value = stat
+  socketMessage.value = message
 }
 
 //启动FPS计数器
 const startFPSCounter = () => {
-  if (FPSInterval) clearInterval(FPSInterval)
+  if (cameraInterval) clearInterval(cameraInterval)
   
   cameraFPSCounter = 0
   frameFPSCounter = 0
   
-  FPSInterval = setInterval(() => { 
+  cameraInterval = setInterval(() => { 
     cameraFPS.value = cameraFPSCounter  //每秒重置帧的个数，统计帧率
     frameFPS.value = frameFPSCounter
     cameraFPSCounter = 0
@@ -158,10 +218,12 @@ const startProcessing = () => {
   if (!mediaStream || isProcessing.value === true) return
   
   isProcessing.value = true
-  framesProcessed.value = 0
+  popNotification('primary', '开始传输画面')
+  updateCameraStat('working', '录制中')
+  updateSocketStat('working', '传输中')
   
-  const interval = 1000 / targetFPS.value
-  frameCaptureInterval = setInterval(() => {
+  const interval = 1000 / targetFPS
+  frameInterval = setInterval(() => {
       sendCamera()
       //sendJunk()
   }, interval)
@@ -176,9 +238,8 @@ const sendJunk = () => {
   cameraFPSCounter++
 }
 
-//捕获并发送帧
+//捕获并发送帧，MediaStream->canvas->webp->压缩->blob
 const sendCamera = () => {
-  const start = performance.now()
   if (!camera.value || !socket || isProcessing.value === false) return
   
   cameraCanvasContext.drawImage(camera.value, 0, 0, cameraCanvas.width, cameraCanvas.height)  //绘制当前视频帧
@@ -198,7 +259,6 @@ const sendCamera = () => {
           width: frameInfo.width,
           height: frameInfo.height
         }
-        
       })
     }
     reader.readAsArrayBuffer(blob);
@@ -207,7 +267,7 @@ const sendCamera = () => {
   cameraFPSCounter++
 }
 
-//渲染处理后的帧
+//渲染处理后的帧，arrayBuffer->blob->dataURL->渲染到<img/>
 const renderFrame = (data) => {
   const reader = new FileReader()
   reader.onload = (event) => {
@@ -215,16 +275,17 @@ const renderFrame = (data) => {
     frame.setAttribute('src', data)
   }
   reader.readAsDataURL(new Blob([data.data], { type: 'image/webp' }));
-  framesProcessed.value++
 }
 
 //停止处理
 const stopProcessing = () => {
   isProcessing.value = false
-  if (frameCaptureInterval) {
-    clearInterval(frameCaptureInterval)
-    frameCaptureInterval = null
+  if (frameInterval) {
+    clearInterval(frameInterval)
+    frameInterval = null
   }
+  updateCameraStat('ready', '已就绪')
+  updateSocketStat('ready', '已就绪')
 }
 
 //组件卸载时清理
@@ -232,6 +293,6 @@ onBeforeUnmount(() => {
   stopProcessing()
   if (socket) socket.disconnect()
   if (mediaStream) mediaStream.getTracks().forEach(track => track.stop())
-  if (FPSInterval) clearInterval(FPSInterval)
+  if (cameraInterval) clearInterval(cameraInterval)
 })
 </script>
