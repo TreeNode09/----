@@ -1,7 +1,8 @@
 from ultralytics import YOLO
+from . import config
 import cv2
 
-model = YOLO('C:/专业实训三/ImgDetect/back/models/sign.pt')
+model = YOLO(config.BASE_DIR + 'back/models/sign.pt')
 
 def process(img):
     results = model.predict(img)

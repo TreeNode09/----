@@ -2,7 +2,8 @@ from flask import Flask, Response, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
-# from utils.handleFrame import *
+from utils.handleFrame import *
+from utils.config import BASE_DIR
 
 import cv2
 import os
@@ -12,8 +13,6 @@ import time
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
-
-BASE_DIR = "C:/Users/Stick/Desktop/ImgDetect/图像识别/back/"
 
 def delete_files(directory):
     file_list = os.listdir(directory)
@@ -69,7 +68,7 @@ def feed_video():
 
 def generate_frames(fps: int = 30):
     
-    cap = cv2.VideoCapture(BASE_DIR + "static/test.mp4", cv2.CAP_ANY)
+    cap = cv2.VideoCapture(BASE_DIR + "back/static/test.mp4", cv2.CAP_ANY)
 
     while cap.isOpened():
 
@@ -131,7 +130,7 @@ def handle_process_frame(data):
     image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     
-    result = process(image)
+    result = handle_frame(image)
     
     result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA
     height, width = result.shape[:2]

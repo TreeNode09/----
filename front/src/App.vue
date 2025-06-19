@@ -1,8 +1,8 @@
 <template>
-<el-container style="height: 100%;">
+<el-container style="height: 100%; width: 100vw;">
   <el-header height="50px">
     <div style="margin-top: 15px;">
-      <span :class="{'camera': !isVideo}">摄像机</span>
+      <span :class="{'camera': !isVideo}">实时录制</span>
       <el-switch class="switch" v-model="isVideo" size="large"/>
       <span :class="{'video': isVideo}">本地视频</span>
     </div>  
@@ -26,6 +26,7 @@ const isVideo = ref(false)
 #app
 {
   height: 100vh;
+  margin: 0;
   padding: 0;
 }
 

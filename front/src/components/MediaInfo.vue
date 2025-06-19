@@ -5,7 +5,7 @@
   <div v-if="props.type==='error'" class="dot" style="background-color: var(--el-color-warning);"></div>
   <div v-if="props.type==='off'" class="dot" style="width: 9px; height: 9px; border: solid 3px var(--el-text-color-disabled);"></div>
 
-  <div v-if="props.type==='error'" style="color: var(--el-color-danger-dark-2);"><slot></slot></div>
+  <div v-if="props.type==='error'" style="color: var(--el-color-danger-dark-2); font-weight: bold;"><slot></slot></div>
   <div v-else><slot></slot></div>
 </div>
 

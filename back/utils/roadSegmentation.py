@@ -7,16 +7,14 @@ import matplotlib.pyplot as plt
 import albumentations as albu
 import torch
 import segmentation_models_pytorch as smp
-import imageio
 
+from . import config
 
 ### Dataloader
-
 def process_image(image, augmentation=None, preprocessing=None):
     # read data
     image = image.copy()
     image = cv2.resize(image, (480, 384))   # 改变图片分辨率
-
 
     # 图像增强应用
     if augmentation:
@@ -29,9 +27,7 @@ def process_image(image, augmentation=None, preprocessing=None):
         image = sample['image']
 
     return image
-
 # ---------------------------------------------------------------
-
 def get_validation_augmentation():
     """调整图像使得图片的分辨率长宽能被32整除"""
     test_transform = [
@@ -49,12 +45,9 @@ def get_preprocessing(preprocessing_fn):
     Args:
         preprocessing_fn (callbale): 数据规范化的函数
             (针对每种预训练的神经网络)
-            
-            
     Return:
         transform: albumentations.Compose
     """
-
     _transform = [
         albu.Lambda(image=preprocessing_fn),
         albu.Lambda(image=to_tensor),
@@ -72,13 +65,12 @@ def getMask(predicted_mask):
     # green_out = predicted_mask * array
     # # output = cv2.add(back_out, green_out)
     return predicted_mask
-
 # ---------------------------------------------------------------
 ENCODER = 'se_resnext50_32x4d'
 ENCODER_WEIGHTS = 'imagenet'
 CLASSES = ['road']
 ACTIVATION = 'sigmoid' # could be None for logits or 'softmax2d' for multiclass segmentation
-DEVICE = 'cuda'
+DEVICE = 'cpu'
 
 # 按照权重预训练的相同方法准备数据
 preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
@@ -90,19 +82,18 @@ model = smp.UnetPlusPlus(
     classes=len(CLASSES),
     activation=ACTIVATION,
 )
-model.load_state_dict(torch.load('C:/专业实训三/ImgDetect/back/models/best_model.pth', map_location=DEVICE))
-model = model.to(DEVICE)
+model.load_state_dict(torch.load(config.BASE_DIR + 'back/models/best_model.pth', map_location=config.DEVICE))
+model = model.to(config.DEVICE)
 model.eval()
 
 # 在循环外创建增强和预处理对象
 val_aug = get_validation_augmentation()
 preproc = get_preprocessing(preprocessing_fn)
 
-
 def process(img):
     # 只做一次增强和预处理
     predict_img = process_image(img, augmentation=val_aug, preprocessing=preproc)
-    x_tensor = torch.from_numpy(predict_img).to(DEVICE).unsqueeze(0)
+    x_tensor = torch.from_numpy(predict_img).to(config.DEVICE).unsqueeze(0)
     with torch.no_grad():
         pr_mask = model(x_tensor)
         pr_mask = (pr_mask.squeeze().cpu().numpy().round())
@@ -110,6 +101,6 @@ def process(img):
     # 同时显示原视频帧和分割结果
     return  getMask(pr_mask)
 
-if __name__ == "__main__":
-    img = cv2.imread('ImgDetect/back/utils/image.png',1)
-    output = process(img)
+# if __name__ == "__main__":
+#     img = cv2.imread('ImgDetect/back/utils/image.png',1)
+#     output = process(img)

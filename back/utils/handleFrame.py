@@ -3,6 +3,7 @@ from . import carPersonDetect
 from . import signDetect
 import cv2
 import numpy as np
+
 def append_mask_to_image(image, mask):
     """
     将分割掩码应用到图像上，并用蓝色高亮分割区域
@@ -58,9 +59,9 @@ def handle_frame(img):
     # 绘制识别框
     img_with_maskAndboxes = draw_boxes(img_with_mask, cp_boxes, cp_classes, color=(0,255,0))
     img_with_maskAndboxes = draw_boxes(img_with_maskAndboxes, sign_boxes, sign_classes, color=(255,0,0))
-    cv2.imshow("Result", img_with_maskAndboxes)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow("Result", img_with_maskAndboxes)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     return img_with_maskAndboxes
 
 def process_mask(mask):

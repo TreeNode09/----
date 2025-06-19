@@ -1,8 +1,8 @@
 <template>
 <video ref="camera" autoplay playinline style="display: none;"></video>
-<el-container>
-  <el-aside :width="frameInfo.width">
-    <img id="frame" :width="frameInfo.width" :height="frameInfo.height"/>
+<el-container style="height: 100%;">
+  <el-aside style="width: calc(50vw - 20px); height: 100%;">
+    <img id="frame" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);"/>
     <div style="margin-top: 5px;">
       <div style="width: 40%; display: inline-block;">
         <div class="half">
@@ -25,7 +25,7 @@
       </div>
     </div>
   </el-aside>
-  <el-main style="width: 500px; padding: 0 20px;">
+  <el-main style="padding: 0 0 0 20px;">
     <el-button class="full" v-if="!isProcessing" type="success" @click="startProcessing">▶ 开始</el-button>
     <el-button class="full" v-if="isProcessing" type="danger" @click="stopProcessing">◼ 停止</el-button>
   </el-main>
@@ -42,6 +42,7 @@ import InfoIcon from './InfoIcon.vue'
 import MediaInfo from './MediaInfo.vue'
 
 const camera = ref(null)
+const isAvailable = ref(false)  //是否允许传输
 const isProcessing = ref(false)
 const cameraFPS = ref(0)
 const frameFPS = ref(0)
@@ -66,7 +67,7 @@ let cameraCanvasContext = null
 let frame = null
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
-const targetFPS = 20  //传输的帧率
+const targetFPS = 10  //传输的帧率
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
 const HOST_IP = "http://127.0.0.1:5000" //后端url
 
@@ -118,6 +119,7 @@ const initSocket = () => {
     })
     
     socket.on('connect', () => {
+      isAvailable.value = true
       popNotification('success', 'WebSocket已连接')
       updateSocketStat('ready', '已就绪')
     })
@@ -130,6 +132,7 @@ const initSocket = () => {
     })
     
     socket.on('connect_error', (error) => {
+      isAvailable.value = false
       popNotification('error', 'WebSocket连接错误' + error)
       updateSocketStat('error', '连接错误')
     })
