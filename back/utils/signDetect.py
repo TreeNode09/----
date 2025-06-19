@@ -10,7 +10,7 @@ def process(img):
         sign_boxes = result.boxes.xyxy  # 边界框坐标
         sign_classes = result.boxes.cls  # 类别索引      
 
-        return sign_boxes, sign_classes                            
+        return sign_boxes, sign_classes
         
         # # # 如果有类别名称，可以通过类别索引获取
         # # class_names = [model.names[int(cls)] for cls in classes]

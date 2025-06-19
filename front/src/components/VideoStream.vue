@@ -26,7 +26,7 @@
     </div>
   </el-aside>
   <el-main style="padding: 0 0 0 20px;">
-    <el-button class="full" v-if="!isProcessing" type="success" @click="startProcessing">▶ 开始</el-button>
+    <el-button class="full" v-if="!isProcessing" type="success" @click="startProcessing" :disabled="!isAvailable">▶ 开始</el-button>
     <el-button class="full" v-if="isProcessing" type="danger" @click="stopProcessing">◼ 停止</el-button>
   </el-main>
 </el-container>

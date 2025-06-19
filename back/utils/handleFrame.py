@@ -31,38 +31,45 @@ def append_mask_to_image(image, mask):
 
     return output
 
-
-def draw_boxes(img, boxes, classes, color=(0, 255, 0), thickness=2):
+def draw_boxes(img, boxes, names, color=(0, 255, 0), thickness=2):
     """
     在图片上绘制识别框和类别标签
     :param img: 原图
     :param boxes: [[x1, y1, x2, y2], ...]
     :param classes: [class_name1, class_name2, ...]
     """
-    class_names = [carPersonDetect.model.names[int(cls)] for cls in classes]
-    for box, cls in zip(boxes, class_names):
+    for box, name in zip(boxes, names):
         x1, y1, x2, y2 = map(int, box)
         cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
-        cv2.putText(img, str(cls), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.putText(img, str(name), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     return img
 
-def handle_frame(img):
+def handle_frame(img: cv2.Mat, options: list[bool]):
+
     original_size = img.shape[:2]  # (height, width)
-    cp_boxes, cp_classes = carPersonDetect.process(img)
-    # print("cp:", cp_boxes, cp_classes)
-    sign_boxes, sign_classes = signDetect.process(img)
-    # print("sign:", sign_boxes, sign_classes)
-    mask = roadSegmentation.process(img.copy())
-    mask = cv2.resize(mask, (original_size[1], original_size[0]))
-    mask = process_mask(mask)  # <--- 加上这行
-    img_with_mask = append_mask_to_image(img, mask)
-    # 绘制识别框
-    img_with_maskAndboxes = draw_boxes(img_with_mask, cp_boxes, cp_classes, color=(0,255,0))
-    img_with_maskAndboxes = draw_boxes(img_with_maskAndboxes, sign_boxes, sign_classes, color=(255,0,0))
-    # cv2.imshow("Result", img_with_maskAndboxes)
+    result = img.copy()
+
+    if options[0] == True:
+        mask = roadSegmentation.process(img.copy())
+        mask = cv2.resize(mask, (original_size[1], original_size[0]))
+        mask = process_mask(mask)  # <--- 加上这行
+        result = append_mask_to_image(result, mask)
+
+    if options[1] == True:
+        cp_boxes, cp_classes = carPersonDetect.process(img)
+        cp_names = [carPersonDetect.model.names[int(cls)] for cls in cp_classes]
+        result = draw_boxes(result, cp_boxes, cp_names, color=(0,255,0))
+
+    if options[2] == True:
+        sign_boxes, sign_classes = signDetect.process(img)
+        sign_names = [signDetect.model.names[int(cls)] for cls in sign_classes]
+        result = draw_boxes(result, sign_boxes, sign_names, color=(255,0,0))
+
+    # cv2.imshow("Result", result)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    return img_with_maskAndboxes
+
+    return result
 
 def process_mask(mask):
     if mask.max() == 1:
