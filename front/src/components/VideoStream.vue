@@ -2,7 +2,8 @@
 <video ref="camera" autoplay playinline style="display: none;"></video>
 <el-container style="height: 100%;">
   <el-aside style="width: calc(50vw - 20px); height: 100%;">
-    <img id="frame" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);"/>
+    <el-empty v-if="!isProcessing" :image-size="200" description="尚未开始" style="height: calc(calc(50vw - 20px) * 0.75);"/>
+    <img id="frame" :class="{'none': !isProcessing}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);"/>
     <div style="margin-top: 5px;">
       <div style="width: 40%; display: inline-block;">
         <div class="half">
@@ -28,6 +29,27 @@
   <el-main style="padding: 0 0 0 20px;">
     <el-button class="full" v-if="!isProcessing" type="success" @click="startProcessing" :disabled="!isAvailable">▶ 开始</el-button>
     <el-button class="full" v-if="isProcessing" type="danger" @click="stopProcessing">◼ 停止</el-button>
+    <div style="margin-top: 10px;">
+      <div style="width: 60%; display: inline-block;">
+        <div class="half"><info-icon><clock/></info-icon> 帧率
+          <el-slider v-model="targetFPS" :min="1" :max="30" :disabled="isProcessing"
+            style="width: calc(100% - 130px); margin: 0 12px; display: inline-flex; vertical-align: middle;"/>
+          <strong>{{ targetFPS }}</strong>FPS
+        </div>
+        <div class="half"><info-icon><picture-filled/></info-icon> 画质
+          <el-slider v-model="streamQuality" :min="0" :max="1" :step="0.1" :disabled="isProcessing"
+            style="width: calc(100% - 120px); margin: 0 12px; display: inline-flex; vertical-align: middle;"/>
+          <strong>{{ streamQuality.toFixed(1) }}</strong>
+        </div>        
+      </div>
+      <div style="width: 40%; display: inline-block; vertical-align: top;">
+        <el-checkbox-group v-model="detectOptions" :disabled="isProcessing" style="float: right;">
+          <el-checkbox-button value="road" disabled>车道</el-checkbox-button>
+          <el-checkbox-button value="sign">交通标志</el-checkbox-button>
+          <el-checkbox-button value="cp">车辆行人</el-checkbox-button>
+        </el-checkbox-group>        
+      </div>
+    </div>
   </el-main>
 </el-container>
 </template>
@@ -36,7 +58,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
-import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold } from '@element-plus/icons-vue'
+import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold, Clock, PictureFilled } from '@element-plus/icons-vue'
 
 import InfoIcon from './InfoIcon.vue'
 import MediaInfo from './MediaInfo.vue'
@@ -52,6 +74,10 @@ const socketStat = ref('off')
 const cameraMessage = ref('未连接')
 const socketMessage = ref('未连接')
 
+const targetFPS = ref(10)
+const streamQuality = ref(0.5)
+const detectOptions = ref([])
+
 const junkText = ref('')
 
 let mediaStream = null
@@ -61,13 +87,13 @@ let frameFPSCounter = 0
 let cameraInterval = null  //记录帧率用的定时器
 let frameInterval = null
 let sendTimes = new Map()
+let options = [false, false, false] //检测选项
 
 let cameraCanvas = null
 let cameraCanvasContext = null
 let frame = null
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
-const targetFPS = 10  //传输的帧率
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
 const HOST_IP = import.meta.env.VITE_BASE_URL //后端url
 
@@ -225,8 +251,15 @@ const startProcessing = () => {
   popNotification('primary', '开始传输画面')
   updateCameraStat('working', '录制中')
   updateSocketStat('working', '传输中')
+
+  if (detectOptions.value.includes('road')) options[0] = true
+  else options[0] = false
+  if (detectOptions.value.includes('sign')) options[1] = true
+  else options[1] = false
+  if (detectOptions.value.includes('cp')) options[2] = true
+  else options[2] = false
   
-  const interval = 1000 / targetFPS
+  const interval = 1000 / targetFPS.value
   frameInterval = setInterval(() => {
       sendCamera()
       //sendJunk()
@@ -262,11 +295,13 @@ const sendCamera = () => {
           data: arrayBuffer,
           width: frameInfo.width,
           height: frameInfo.height
-        }
+        },
+        options: options,
+        quality: streamQuality.value
       })
     }
     reader.readAsArrayBuffer(blob);
-  }, 'image/webp', 0.5)
+  }, 'image/webp', 1)
 
   cameraFPSCounter++
 }
@@ -278,7 +313,7 @@ const renderFrame = (data) => {
     const data = event.target.result
     frame.setAttribute('src', data)
   }
-  reader.readAsDataURL(new Blob([data.data], { type: 'image/webp' }));
+  reader.readAsDataURL(new Blob([data], { type: 'image/webp' }));
 }
 
 //停止处理

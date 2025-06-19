@@ -13,6 +13,7 @@ import time
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+print('Ready!')
 
 def delete_files(directory):
     file_list = os.listdir(directory)
@@ -123,26 +124,24 @@ def handle_process_frame(data):
     image_blob = image_data['data']  # 获取图像数据
     width = image_data['width']
     height = image_data['height']
+    options = data['options']
+    quality = data['quality']
+    print(type(quality))
+
     image_buffer = np.frombuffer(image_blob, dtype=np.uint8)
-    print(data['frameId'])
 
     image = cv2.imdecode(image_buffer, -1)   # 转到openCV的图片格式
     image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     
-    result = handle_frame(image, [False, False, False])
+    result = handle_frame(image, options)
     
     result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA
-    height, width = result.shape[:2]
-    _, compressed = cv2.imencode('.webp', result, [cv2.IMWRITE_WEBP_QUALITY, 30])
+    _, compressed = cv2.imencode('.webp', result, [cv2.IMWRITE_WEBP_QUALITY, int(100 * quality)])
 
     resultData = {
         'frameId': data['frameId'],
-        'imageData': {
-            'data': compressed.tobytes(),
-            'width': width,
-            'height': height
-        }
+        'imageData': compressed.tobytes()
     }
     emit('sendFrame', resultData)
 

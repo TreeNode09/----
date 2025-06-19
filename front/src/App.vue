@@ -38,6 +38,11 @@ const isVideo = ref(false)
   vertical-align: top;
 }
 
+.none
+{
+  display: none;
+}
+
 .el-switch.switch
 {
   padding: 0 10px;
@@ -69,5 +74,22 @@ const isVideo = ref(false)
 .el-notification.right
 {
   --el-notification-width: 250px;
+}
+
+.half .el-slider
+{
+  --el-slider-main-bg-color: var(--el-color-success);
+  --el-slider-button-size: 15px;
+}
+
+.half .el-checkbox-button
+{
+    --el-checkbox-button-checked-bg-color: var(--el-color-success);
+    --el-checkbox-button-checked-border-color: var(--el-color-success);
+}
+
+.half .el-checkbox-button__inner:hover
+{
+  color: var(--el-color-success);
 }
 </style>
