@@ -130,7 +130,7 @@ def handle_process_frame(data):
     image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     
-    result = handle_frame(image, [False, True, False])
+    result = handle_frame(image, [False, False, False])
     
     result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA
     height, width = result.shape[:2]

@@ -69,7 +69,7 @@ let frame = null
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
 const targetFPS = 10  //传输的帧率
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
-const HOST_IP = "http://127.0.0.1:5000" //后端url
+const HOST_IP = import.meta.env.VITE_BASE_URL //后端url
 
 onMounted(() => {
   initCamera()
@@ -103,6 +103,7 @@ const initCamera = async () => {
     startFPSCounter()
   } catch (error) {
     popNotification('error', '摄像头初始化失败' + error)
+    updateCameraStat('error', '初始化失败')
   }
 }
 

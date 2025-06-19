@@ -5,7 +5,7 @@ import axios from 'axios'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 
-axios.defaults.baseURL = "http://127.0.0.1:5000"
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL
 
 const app = createApp(App)
 app.use(ElementPlus)
