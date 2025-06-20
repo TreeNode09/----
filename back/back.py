@@ -31,7 +31,7 @@ def handle_upload():
 
     video = request.files.get("video")
 
-    #拿到处理参数（需要经过哪些模型处理）[]
+    #拿到处理参数（需要经过哪些模型处理）
     video.save(BASE_DIR + "static/test.mp4")
     
     # cap = cv2.VideoCapture(BASE_DIR + "static/test.mp4", cv2.CAP_ANY)

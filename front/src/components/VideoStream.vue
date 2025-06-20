@@ -1,6 +1,6 @@
 <template>
 <video ref="camera" autoplay playinline style="display: none;"></video>
-<el-container style="height: 100%;">
+<el-container style="height: 100%;" class="stream">
   <el-aside style="width: calc(50vw - 20px); height: 100%;">
     <el-empty v-if="!isProcessing" :image-size="200" description="尚未开始" style="height: calc(calc(50vw - 20px) * 0.75);"/>
     <img id="frame" :class="{'none': !isProcessing}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);"/>
@@ -212,7 +212,7 @@ const popNotification = (type, message) => {
   ElNotification({
     type: type,
     dangerouslyUseHTMLString: true,
-    message: '<div><strong>' + message + '</strong></div>' + getTime(),
+    message: '<div><strong>' + message + '</strong></div>' + getTime()
   })
 }
 

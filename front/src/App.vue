@@ -78,18 +78,32 @@ const isVideo = ref(false)
 
 .half .el-slider
 {
-  --el-slider-main-bg-color: var(--el-color-success);
-  --el-slider-button-size: 15px;
+  --el-slider-button-size: 15px;  
 }
 
-.half .el-checkbox-button
+.stream .el-slider
+{
+  --el-slider-main-bg-color: var(--el-color-success);
+}
+
+.stream .el-checkbox-button
 {
     --el-checkbox-button-checked-bg-color: var(--el-color-success);
     --el-checkbox-button-checked-border-color: var(--el-color-success);
 }
 
-.half .el-checkbox-button__inner:hover
+.stream .el-checkbox-button__inner:hover
 {
   color: var(--el-color-success);
+}
+
+.el-upload
+{
+  width: 100%;
+}
+
+.no-trigger .el-upload--picture
+{
+  display: none;
 }
 </style>
