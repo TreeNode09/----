@@ -1,4 +1,4 @@
-from flask import Flask, Response, request
+from flask import Flask, request, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
@@ -13,6 +13,7 @@ import time
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+fourcc = cv2.VideoWriter_fourcc(*'avc1')
 print('Ready!')
 
 def delete_files(directory):
@@ -28,78 +29,18 @@ def hello_world():
 
 @app.route('/upload', methods=['POST'])
 def handle_upload():
-
     video = request.files.get("video")
+    options = request.files.get('options')
+    print(options)
+    #video.save(BASE_DIR + "static/test.mp4")
+    video.save("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/test.mp4")
+    process_video_file()
+    socketio.emit('finishProcess', {'progress': 1.0})
+    return "OK"
 
-    #拿到处理参数（需要经过哪些模型处理）
-    video.save(BASE_DIR + "static/test.mp4")
-    
-    # cap = cv2.VideoCapture(BASE_DIR + "static/test.mp4", cv2.CAP_ANY)
-    
-    # size = (960,384)    #图片的尺寸，一定要和要用的图片size一致
-    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # videowrite = cv2.VideoWriter(BASE_DIR + "static/result.mp4", fourcc, 30, size)#20是帧数，size是图片尺寸
-
-    # index = 0
-    # while cap.isOpened():
-
-    #     success, img = cap.read()
-    #     if not success: break
-
-    #     output = handle_frame(img)
-    #     img = cv2.resize(img, (480, 384))
-    #     show_img = np.hstack([img, output])
-    #     # videowrite.write(show_img)
-
-    #     ret, buffer = cv2.imencode('.jpg', show_img)
-    #     frame = buffer.tobytes()
-
-    #     index += 1
-
-    # cap.release()
-    # cv2.destroyAllWindows()
-    # videowrite.release()
-
-    return "ok"
-
-@app.route('/video-feed')
-def feed_video():
-
-    return Response(generate_frames(30), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-def generate_frames(fps: int = 30):
-    
-    cap = cv2.VideoCapture(BASE_DIR + "back/static/test.mp4", cv2.CAP_ANY)
-
-    while cap.isOpened():
-
-        start = time.time()
-
-        success, img = cap.read()
-        if not success: break
-
-        # output = handle_frame(img)
-        img = cv2.resize(img, (480, 384))
-        # show_img = np.hstack([img, output])
-
-        ret, buffer = cv2.imencode('.jpg', img)
-        frame = buffer.tobytes()
-
-        yield (
-            b'--frame\r\n'
-            b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n'
-        )
-
-        delay = 1 / fps - (time.time() - start) #处理下一帧之前需要等待的时间
-        if delay < 0: print("慢了%.4fs!" % (time.time() - start)) #太慢啦
-        else: time.sleep(delay)
-
-    cap.release()
-
-def process(image: cv2.Mat):
-    height, width = image.shape[:2]
-    result = cv2.rectangle(image, (width//10, height//10), (width*9//10, height*9//10), (0, 255, 0), 2)
-    return result
+@app.route('/processed', methods=['GET'])
+def handle_processed():
+    return send_file("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/result.mp4")
 
 @socketio.on('connect')
 def handle_connect():
@@ -119,14 +60,13 @@ def handle_junk(data):
 
 @socketio.on('sendCamera')
 def handle_process_frame(data):
-
     image_data = data['imageData']
     image_blob = image_data['data']  # 获取图像数据
     width = image_data['width']
     height = image_data['height']
     options = data['options']
     quality = data['quality']
-    print(type(quality))
+    print(data['frameId'])
 
     image_buffer = np.frombuffer(image_blob, dtype=np.uint8)
 
@@ -144,6 +84,34 @@ def handle_process_frame(data):
         'imageData': compressed.tobytes()
     }
     emit('sendFrame', resultData)
+
+def process_video_file():
+    cap = cv2.VideoCapture(BASE_DIR + "back/static/test.mp4", cv2.CAP_ANY)
+    total_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    output = cv2.VideoWriter(BASE_DIR + 'back/static/result.mp4', fourcc, fps, (width, height))
+    begin = time.time()
+    count = 0
+    while cap.isOpened():
+
+        success, img = cap.read()
+        if not success: break
+
+        result = handle_frame(img, [False, False, False])
+        output.write(result)
+        count += 1
+
+        current = time.time()
+        if current - begin > 1.0:   # 每1秒更新一次进度
+            begin = current
+            socketio.emit('updateProgress', {'progress': count / total_count})
+            socketio.sleep(0)   # 让socket立即发送
+
+    cap.release()
+    output.release()
 
 if __name__ == '__main__':
     # app.run(debug=False)

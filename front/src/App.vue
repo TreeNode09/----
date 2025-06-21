@@ -102,8 +102,13 @@ const isVideo = ref(false)
   width: 100%;
 }
 
-.no-trigger .el-upload--picture
+.el-upload.el-upload--text
 {
   display: none;
+}
+
+.trigger-on .el-upload--text
+{
+  display: inline-flex;
 }
 </style>

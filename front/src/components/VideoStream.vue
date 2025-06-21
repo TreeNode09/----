@@ -8,11 +8,11 @@
       <div style="width: 40%; display: inline-block;">
         <div class="half">
           <info-icon><camera-filled/></info-icon>
-          <media-info :type="cameraStat">{{ cameraMessage }}</media-info>
+          <connect-info :type="cameraStat">{{ cameraMessage }}</connect-info>
         </div>
         <div class="half">
           <info-icon><upload-filled/></info-icon>
-          <media-info :type="socketStat">{{ socketMessage }}</media-info>        
+          <connect-info :type="socketStat">{{ socketMessage }}</connect-info>
         </div>
       </div>
       <div style="width: 60%; display: inline-block;">
@@ -61,7 +61,7 @@ import { ElNotification } from 'element-plus'
 import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold, Clock, PictureFilled } from '@element-plus/icons-vue'
 
 import InfoIcon from './InfoIcon.vue'
-import MediaInfo from './MediaInfo.vue'
+import ConnectInfo from './ConnectInfo.vue'
 
 const camera = ref(null)
 const isAvailable = ref(false)  //是否允许传输
@@ -157,27 +157,6 @@ const initSocket = () => {
         updateSocketStat('off', '未连接')
       }
     })
-    
-    socket.on('connect_error', (error) => {
-      isAvailable.value = false
-      popNotification('error', 'WebSocket连接错误' + error)
-      updateSocketStat('error', '连接错误')
-    })
-    
-    //接收处理后的帧
-    socket.on('sendFrame', (data) => {
-      const receiveTime = performance.now() //计算往返延迟，使用Map来存储发送时间
-      if (sendTimes.has(data.frameId)) {
-        const sendTime = sendTimes.get(data.frameId)
-        const latency = receiveTime - sendTime
-
-        delay.value = latency
-
-        sendTimes.delete(data.frameId)
-      }
-      frameFPSCounter++
-      renderFrame(data.imageData) //渲染
-    })
 
     socket.on('yourJunk', (data) => {
       const receiveTime = performance.now()
@@ -189,8 +168,28 @@ const initSocket = () => {
 
         sendTimes.delete(data.frameId)
       }
-      frameFPSCounter++    
+      frameFPSCounter++
       junkText.value = data.data
+    })
+
+    //接收处理后的帧
+    socket.on('sendFrame', (data) => {
+      const receiveTime = performance.now() //计算往返延迟，使用Map来存储发送时间
+      if (sendTimes.has(data.frameId)) {
+        const sendTime = sendTimes.get(data.frameId)
+        const latency = receiveTime - sendTime
+        delay.value = latency
+
+        sendTimes.delete(data.frameId)
+      }
+      frameFPSCounter++
+      renderFrame(data.imageData) //渲染
+    })
+
+    socket.on('connect_error', (error) => {
+      isAvailable.value = false
+      popNotification('error', 'WebSocket连接错误' + error)
+      updateSocketStat('error', '连接错误')
     })
 
   } catch (error) {
