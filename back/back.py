@@ -30,13 +30,55 @@ def hello_world():
 @app.route('/upload', methods=['POST'])
 def handle_upload():
     video = request.files.get("video")
-    options = request.files.get('options')
-    print(options)
+    optionsStr = request.form.get('options')   # 注意拿到的都是字符串
+    fpsStr = request.form.get('fps')
+
+    options = [bool(int(option)) for option in optionsStr.split(',')]
+    fps = float(fpsStr)
+
     #video.save(BASE_DIR + "static/test.mp4")
     video.save("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/test.mp4")
-    process_video_file()
+    process_video_file(options, fps)
     socketio.emit('finishProcess', {'progress': 1.0})
     return "OK"
+
+def process_video_file(options: list[bool], targetFPS: float):
+    cap = cv2.VideoCapture(BASE_DIR + "back/static/test.mp4", cv2.CAP_ANY)
+    total_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    originalFPS = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    output = cv2.VideoWriter(BASE_DIR + 'back/static/result.mp4', fourcc, targetFPS, (width, height))
+    begin = time.time()
+
+    count = 0
+    current_time = 0
+    target_time = 0
+    original_interval = 1 / originalFPS
+    target_interval = 1/ targetFPS
+
+    while cap.isOpened():
+
+        success, img = cap.read()
+        if not success: break
+
+        current_time += original_interval
+        if current_time < target_time: continue # 改变帧率
+
+        target_time += target_interval
+        result = handle_frame(img, options)
+        output.write(result)
+        count += 1
+
+        current = time.time()
+        if current - begin > 1.0:   # 每1秒更新一次进度
+            begin = current
+            socketio.emit('updateProgress', {'progress': count / total_count})
+            socketio.sleep(0)   # 让socket立即发送
+
+    cap.release()
+    output.release()
 
 @app.route('/processed', methods=['GET'])
 def handle_processed():
@@ -84,34 +126,6 @@ def handle_process_frame(data):
         'imageData': compressed.tobytes()
     }
     emit('sendFrame', resultData)
-
-def process_video_file():
-    cap = cv2.VideoCapture(BASE_DIR + "back/static/test.mp4", cv2.CAP_ANY)
-    total_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    output = cv2.VideoWriter(BASE_DIR + 'back/static/result.mp4', fourcc, fps, (width, height))
-    begin = time.time()
-    count = 0
-    while cap.isOpened():
-
-        success, img = cap.read()
-        if not success: break
-
-        result = handle_frame(img, [False, False, False])
-        output.write(result)
-        count += 1
-
-        current = time.time()
-        if current - begin > 1.0:   # 每1秒更新一次进度
-            begin = current
-            socketio.emit('updateProgress', {'progress': count / total_count})
-            socketio.sleep(0)   # 让socket立即发送
-
-    cap.release()
-    output.release()
 
 if __name__ == '__main__':
     # app.run(debug=False)

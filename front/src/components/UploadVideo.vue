@@ -73,7 +73,7 @@ const originalFPS = ref(30)
 const detectOptions = ref([])
 
 let socket = null
-let options = [false, false, false]
+let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，可以不使用true/false
 
 const videoURL = ref('')
 
@@ -156,12 +156,12 @@ const updateSocketStat = (stat, message) => {
 }
 
 async function uploadVideo(item){
-  if (detectOptions.value.includes('road')) options[0] = true
-  else options[0] = false
-  if (detectOptions.value.includes('sign')) options[1] = true
-  else options[1] = false
-  if (detectOptions.value.includes('cp')) options[2] = true
-  else options[2] = false
+  if (detectOptions.value.includes('road')) options[0] = 1
+  else options[0] = 0
+  if (detectOptions.value.includes('sign')) options[1] = 1
+  else options[1] = 0
+  if (detectOptions.value.includes('cp')) options[2] = 1
+  else options[2] = 0
 
   let data = new FormData()
   data.append("video", item.file)
@@ -169,7 +169,7 @@ async function uploadVideo(item){
   data.append('fps', targetFPS.value)
 
   uploadStat.value = '处理'
-  updateSocketStat('wordking', '处理中')
+  updateSocketStat('working', '处理中')
 
   await axios.post('/upload', data
     ).then(response => {
@@ -195,8 +195,39 @@ const checkFormat = async(file, files) => {
     fileList.value = []
   }
   else {
+    originalFPS.value = getOriginalFPS(new Blob([file.raw]))
     uploadStat.value = '上传'
   }
+}
+const windows = window
+const getOriginalFPS = (file) =>  {
+  return new Promise((r, j) => {
+    const getSize = () => file.size
+    const readChunk = (chunkSize, offset) =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          if (event.target.error) {
+            reject(event.target.error)
+          }
+          resolve(new Uint8Array(event.target.result))
+        }
+        reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
+      })
+    windows.MediaInfo()
+      .then((media) => {
+        media.analyzeData(getSize, readChunk)
+          .then((result) => {
+            console.log(result)
+            return result
+          }).catch((error) => {
+            j(error)
+          })
+      })
+      .catch((error) => {
+        j(error)
+      })
+  })
 }
 
 const submitUpload = () =>{
