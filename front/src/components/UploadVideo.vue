@@ -189,7 +189,7 @@ async function uploadVideo(item){
 }
 
 //添加文件后立刻检查文件格式
-const checkFormat = async(file, files) => {
+const checkFormat = (file, files) => {
   if (files.length === 0) return
 
   let fileName = file.name
@@ -204,42 +204,31 @@ const checkFormat = async(file, files) => {
   }
   else {
     uploadStat.value = '上传'
-    await getOriginalFPS(new Blob([file.raw]))
-    .then((result) => {
-      console.log(result)
-      originalFPS.value = result
-      uploadStat.value = '上传'
-    })
+    getOriginalFPS(new Blob([file.raw]))
+    .then((result) => originalFPS.value = result)
+    .catch((error) => console.log(error))
   }
 }
 
-const windows = window
-const getOriginalFPS = (file) =>  {
-  return new Promise((r, j) => {
-    const getSize = () => file.size
-    const readChunk = (chunkSize, offset) =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          if (event.target.error) {
-            reject(event.target.error)
-          }
-          resolve(new Uint8Array(event.target.result))
-        }
-        reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
-      })
-    windows.MediaInfo()
-      .then((media) => {
-        media.analyzeData(getSize, readChunk)
-          .then((result) => {
-            return result.media.track[0].FrameRate
-          }).catch((error) => {
-            j(error)
+const getOriginalFPS = (file) => {
+  return new Promise((resolve, reject) => {
+    window.MediaInfo().then((media) => {
+      media.analyzeData(
+        () => {return file.size},
+        (chunkSize, offset) => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = (event) => {
+              if (event.target.error) reject(event.target.error)
+              else resolve(new Uint8Array(event.target.result))
+            }
+            reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
           })
-      })
-      .catch((error) => {
-        j(error)
-      })
+        }
+      ).then((result) => {
+        resolve(result.media.track[0].FrameRate)
+      }).catch((error) => reject(error))
+    }).catch((error) => reject(error))
   })
 }
 
@@ -257,7 +246,6 @@ const getProcessedVideo = () => {
   }).catch(error => alert(error))
 }
 
-//组件卸载时清理
 onBeforeUnmount(() => {
   if (socket) socket.disconnect()
 })
