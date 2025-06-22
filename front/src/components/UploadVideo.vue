@@ -1,20 +1,30 @@
 <template>
 <el-container style="height: 100%;" class="file">
   <el-aside style="width: calc(50vw - 20px); height: 100%;">
-    <el-empty v-if="uploadStat!=='下载'" :image-size="200" description="别急" style="height: calc(calc(50vw - 20px) * 0.75);"/>
+    <el-empty v-if="firstVideo" :image-size="200" description="欢迎使用" style="height: calc(calc(50vw - 20px) * 0.75);"/>
     <video ref="videoPlayer" controls
-      :class="{'none': uploadStat!=='下载'}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);"></video>
-    <div style="width: 40%; display: inline-block;">
-      <info-icon><upload-filled/></info-icon>
-      <connect-info :type="socketStat">{{ socketMessage }}</connect-info>
+      :class="{'none': firstVideo === true}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);">
+    </video>
+    <div style="margin-top: 5px;">
+      <div class="half">
+        <info-icon><upload-filled/></info-icon>
+        <connect-info :type="socketStat">{{ socketMessage }}</connect-info>
+      </div>
+      <div class="half"></div>
     </div>
   </el-aside>
   <el-main style="padding: 0 0 0 20px;">
     <el-upload v-model:file-list="fileList" ref="upload" action :http-request="uploadVideo" :on-change="checkFormat"
-      :auto-upload="false" :multiple="false" :limit="1" list-type="text" :class="{'trigger-on': uploadStat==='选择'}"> 
+      @mouseover="()=>{if(uploadStat==='完成')uploadStat='选择'}"
+      @mouseleave="()=>{if(!firstVideo&&uploadStat==='选择')uploadStat='完成'}"
+      :auto-upload="false" :multiple="false" :limit="1" list-type="text"
+      :class="{'trigger-on': uploadStat==='选择'||uploadStat==='完成'}">
       <template #trigger>
-        <el-button v-if="uploadStat==='选择'" class="full" type="primary" plain :icon="DocumentAdd">
-          选择视频 (<span v-for="format in allowedFormats">{{ format }},&nbsp;</span>≤{{ maxSizeMB }}MB)
+        <el-button v-if="uploadStat==='选择'" class="full"  type="primary" :icon="DocumentAdd">
+          <span>选择视频 (<span v-for="format in allowedFormats">{{ format }},&nbsp;</span>≤{{ maxSizeMB }}MB)</span>
+        </el-button>
+        <el-button v-if="uploadStat==='完成'" class="full"  type="success" :icon="Select">
+          <span>完成! 点击继续上传视频</span>
         </el-button>
       </template>
       <el-button v-if="uploadStat==='上传'" class="full" type="primary" 
@@ -23,9 +33,8 @@
       <div v-if="uploadStat==='处理'"
         style="display: inline-block; position: absolute; height: 50px;
         background-color: rgba(255, 255, 255, 0.3); transition: all 0.5s ease-in-out;"
-        :style="{width: 'calc(calc(50vw - 20px) * ' + (1 - videoProgress) + ')',
-        left: 'calc(50vw + calc(calc(50vw - 20px) * ' + videoProgress + '))'}"></div>
-      <el-button v-if="uploadStat==='下载'" class="full" type="primary" :icon="Download">下载</el-button>
+        :style="{width: 'calc(calc(50vw - 40px) * ' + (1 - videoProgress) + ')',
+        left: 'calc(calc(50vw + 20px) + calc(calc(50vw - 40px) * ' + videoProgress + '))'}"></div>
     </el-upload>
     <div style="margin-top: 10px;">
       <div style="width: 60%; display: inline-block;">
@@ -52,7 +61,7 @@
 import { ref, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
 import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
-import { Clock, DocumentAdd, Download, Upload, UploadFilled } from '@element-plus/icons-vue'
+import { Clock, DocumentAdd, Select, Upload, UploadFilled } from '@element-plus/icons-vue'
 import axios from 'axios'
 
 import ConnectInfo from './ConnectInfo.vue'
@@ -61,19 +70,19 @@ import InfoIcon from './InfoIcon.vue'
 const upload = ref(null)
 const videoPlayer = ref(null)
 const fileList = ref([])
-const message = ref('')
 const uploadStat = ref('选择')
 const isConnected = ref(false)
 const videoProgress = ref(0.0)
 const socketStat = ref('off')
 const socketMessage = ref('未连接')
+const firstVideo = ref(true)
 
 const targetFPS = ref(10)
-const originalFPS = ref(30)
+const originalFPS = ref(10)
 const detectOptions = ref([])
 
 let socket = null
-let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，可以不使用true/false
+let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，这样可以直接在Python里转成布尔型
 
 const videoURL = ref('')
 
@@ -116,7 +125,7 @@ const initSocket = () => {
 
     socket.on('finishProcess', (data) => {
       videoProgress.value = 1.0
-      uploadStat.value = '下载'
+      uploadStat.value = '完成'
     })
 
     socket.on('connect_error', (error) => {
@@ -172,12 +181,11 @@ async function uploadVideo(item){
   updateSocketStat('working', '处理中')
 
   await axios.post('/upload', data
-    ).then(response => {
-        message.value = response.data //视频处理完毕后才会得到response
-    }).catch(error => {alert(error)})
-  
-  updateSocketStat('ready', '已就绪')
-  getProcessedVideo()
+  ).then(response => {  //视频处理完毕后才会得到response
+    fileList.value = []
+    updateSocketStat('ready', '已就绪')
+    getProcessedVideo() 
+  }).catch(error => {alert(error)})
 }
 
 //添加文件后立刻检查文件格式
@@ -195,10 +203,16 @@ const checkFormat = async(file, files) => {
     fileList.value = []
   }
   else {
-    originalFPS.value = getOriginalFPS(new Blob([file.raw]))
     uploadStat.value = '上传'
+    await getOriginalFPS(new Blob([file.raw]))
+    .then((result) => {
+      console.log(result)
+      originalFPS.value = result
+      uploadStat.value = '上传'
+    })
   }
 }
+
 const windows = window
 const getOriginalFPS = (file) =>  {
   return new Promise((r, j) => {
@@ -218,8 +232,7 @@ const getOriginalFPS = (file) =>  {
       .then((media) => {
         media.analyzeData(getSize, readChunk)
           .then((result) => {
-            console.log(result)
-            return result
+            return result.media.track[0].FrameRate
           }).catch((error) => {
             j(error)
           })
@@ -234,14 +247,14 @@ const submitUpload = () =>{
   upload.value.submit()
 }
 
-const getProcessedVideo = async() => {
-  try {
-    const response = await axios.get('/processed', {responseType: 'blob'})
+const getProcessedVideo = () => {
+  axios.get('/processed', {responseType: 'blob'})
+  .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
-
-    uploadStat.value = '下载'
-  }catch(error) {alert(error)}
+    uploadStat.value = '完成'
+    firstVideo.value = false
+  }).catch(error => alert(error))
 }
 
 //组件卸载时清理
