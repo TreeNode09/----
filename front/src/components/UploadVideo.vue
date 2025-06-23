@@ -54,6 +54,7 @@
           <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        
       </div>
+      <div id="chart" style="height: 400px;"></div>
     </div>
   </el-main>
 </el-container>
@@ -65,6 +66,7 @@ import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
 import { Clock, CloseBold, DocumentAdd, Select, Upload, UploadFilled } from '@element-plus/icons-vue'
 import axios from 'axios'
+import * as echarts from 'echarts'
 
 import ConnectInfo from './ConnectInfo.vue'
 import InfoIcon from './InfoIcon.vue'
@@ -86,6 +88,9 @@ const detectOptions = ref([])
 let socket = null
 let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，这样可以直接在Python里转成布尔型
 
+let chart = null
+let chartOption = {yAxis: {data: ["进度"]}, xAxis: {}, series: [{name: "百分比", type: "bar", data: [0]}]}
+
 const videoURL = ref('')
 
 const allowedFormats = ['.mp4', '.avi']  //允许上传的视频格式
@@ -95,6 +100,8 @@ const HOST_IP = import.meta.env.VITE_BASE_URL //后端url
 onMounted(() => {
   upload.value = useTemplateRef('upload')
   videoPlayer.value = useTemplateRef('videoPlayer')
+  chart = echarts.init(document.getElementById('chart'))
+  chart.setOption(chartOption)
   initSocket()
 })
 
@@ -123,7 +130,7 @@ const initSocket = () => {
     //接收视频处理进度
     socket.on('updateProgress', (data) => {
       videoProgress.value = data.progress
-      console.log(videoProgress.value)
+      chart.setOption({series: [{name: "百分比", data: [videoProgress.value]}]})
     })
 
     socket.on('finishProcess', (data) => {
