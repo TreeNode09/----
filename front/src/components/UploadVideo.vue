@@ -1,7 +1,7 @@
 <template>
 <el-container style="height: 100%;" class="file">
   <el-aside style="width: calc(50vw - 20px); height: 100%;">
-    <el-empty v-if="firstVideo" :image-size="200" description="欢迎使用" style="height: calc(calc(50vw - 20px) * 0.75);"/>
+    <el-empty v-if="firstVideo" :image-size="200" :description="uploadStat + '中'" style="height: calc(calc(50vw - 20px) * 0.75);"/>
     <video ref="videoPlayer" controls
       :class="{'none': firstVideo === true}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);">
     </video>
@@ -14,11 +14,11 @@
     </div>
   </el-aside>
   <el-main style="padding: 0 0 0 20px;">
-    <el-upload v-model:file-list="fileList" ref="upload" action :http-request="uploadVideo" :on-change="checkFormat"
+    <el-upload v-model:file-list="fileList" ref="upload" action :class="{'trigger-on': uploadStat==='选择'||uploadStat==='完成'}"
+      :http-request="uploadVideo" :on-change="checkFormat" :on-remove="checkFormat"
       @mouseover="()=>{if(uploadStat==='完成')uploadStat='选择'}"
       @mouseleave="()=>{if(!firstVideo&&uploadStat==='选择')uploadStat='完成'}"
-      :auto-upload="false" :multiple="false" :limit="1" list-type="text"
-      :class="{'trigger-on': uploadStat==='选择'||uploadStat==='完成'}">
+      :auto-upload="false" :multiple="false" :limit="1" list-type="text">
       <template #trigger>
         <el-button v-if="uploadStat==='选择'" class="full"  type="primary" :icon="DocumentAdd">
           <span>选择视频 (<span v-for="format in allowedFormats">{{ format }},&nbsp;</span>≤{{ maxSizeMB }}MB)</span>
@@ -31,10 +31,12 @@
         :disabled="!isConnected" :icon="Upload" @click="submitUpload">上传</el-button>
       <el-button v-if="uploadStat==='处理'" class="full" type="primary">处理中 {{ (videoProgress * 100).toFixed(1) }}%</el-button>
       <div v-if="uploadStat==='处理'"
-        style="display: inline-block; position: absolute; height: 50px;
+        style="display: inline-block; position: absolute; right: 20px; height: 50px;
         background-color: rgba(255, 255, 255, 0.3); transition: all 0.5s ease-in-out;"
-        :style="{width: 'calc(calc(50vw - 40px) * ' + (1 - videoProgress) + ')',
-        left: 'calc(calc(50vw + 20px) + calc(calc(50vw - 40px) * ' + videoProgress + '))'}"></div>
+        :style="{width: 'calc(calc(50vw - 40px) * ' + (1 - videoProgress) + ')'}"></div>
+      <div v-if="uploadStat==='处理'" style="display: inline-block; position: absolute; right: 20px; height: 50px;">
+        <el-button style="height: 40px; width: 40px; margin: 5px;" :icon="CloseBold" text @click="cancelProcess"></el-button>
+      </div>
     </el-upload>
     <div style="margin-top: 10px;">
       <div style="width: 60%; display: inline-block;">
@@ -48,8 +50,8 @@
       <div style="width: 40%; display: inline-block; vertical-align: top;">
         <el-checkbox-group v-model="detectOptions" :disabled="uploadStat!=='上传'" style="float: right;">
           <el-checkbox-button value="road" disabled>车道</el-checkbox-button>
-          <el-checkbox-button value="sign">交通标志</el-checkbox-button>
           <el-checkbox-button value="cp">车辆行人</el-checkbox-button>
+          <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        
       </div>
     </div>
@@ -61,7 +63,7 @@
 import { ref, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
 import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
-import { Clock, DocumentAdd, Select, Upload, UploadFilled } from '@element-plus/icons-vue'
+import { Clock, CloseBold, DocumentAdd, Select, Upload, UploadFilled } from '@element-plus/icons-vue'
 import axios from 'axios'
 
 import ConnectInfo from './ConnectInfo.vue'
@@ -113,8 +115,9 @@ const initSocket = () => {
       updateSocketStat('ready', '已就绪')
     })
     
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       updateSocketStat('off', '未连接')
+      popNotification('warning', '已断开连接: ' + reason)
     })
 
     //接收视频处理进度
@@ -126,6 +129,7 @@ const initSocket = () => {
     socket.on('finishProcess', (data) => {
       videoProgress.value = 1.0
       uploadStat.value = '完成'
+      getProcessedVideo()
     })
 
     socket.on('connect_error', (error) => {
@@ -164,12 +168,12 @@ const updateSocketStat = (stat, message) => {
   socketMessage.value = message
 }
 
-async function uploadVideo(item){
+function uploadVideo(item){
   if (detectOptions.value.includes('road')) options[0] = 1
   else options[0] = 0
-  if (detectOptions.value.includes('sign')) options[1] = 1
+  if (detectOptions.value.includes('cp')) options[1] = 1
   else options[1] = 0
-  if (detectOptions.value.includes('cp')) options[2] = 1
+  if (detectOptions.value.includes('sign')) options[2] = 1
   else options[2] = 0
 
   let data = new FormData()
@@ -177,20 +181,20 @@ async function uploadVideo(item){
   data.append("options", options)
   data.append('fps', targetFPS.value)
 
-  uploadStat.value = '处理'
-  updateSocketStat('working', '处理中')
-
-  await axios.post('/upload', data
-  ).then(response => {  //视频处理完毕后才会得到response
-    fileList.value = []
-    updateSocketStat('ready', '已就绪')
-    getProcessedVideo() 
+  axios.post('/upload', data
+  ).then(response => {
+    uploadStat.value = '处理'
+    updateSocketStat('working', '处理中')
   }).catch(error => {alert(error)})
 }
 
 //添加文件后立刻检查文件格式
 const checkFormat = (file, files) => {
-  if (files.length === 0) return
+  console.log(fileList.value)
+  if (files.length === 0) {
+    uploadStat.value = '选择'
+    return
+  }
 
   let fileName = file.name
   let extension = fileName.substring(fileName.lastIndexOf('.'))
@@ -236,12 +240,19 @@ const submitUpload = () =>{
   upload.value.submit()
 }
 
+const cancelProcess = () => {
+  socket.emit('cancelProcess')
+  uploadStat.value = '上传'
+  updateSocketStat('ready', '已就绪')
+}
+
 const getProcessedVideo = () => {
   axios.get('/processed', {responseType: 'blob'})
   .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
     uploadStat.value = '完成'
+    fileList.value = []
     firstVideo.value = false
   }).catch(error => alert(error))
 }

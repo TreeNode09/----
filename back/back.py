@@ -1,6 +1,7 @@
 from flask import Flask, request, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from threading import Thread
 
 from utils.handleFrame import *
 from utils.config import BASE_DIR
@@ -13,7 +14,10 @@ import time
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+
 fourcc = cv2.VideoWriter_fourcc(*'avc1')
+cancelled = False
+
 print('Ready!')
 
 def delete_files(directory):
@@ -38,11 +42,16 @@ def handle_upload():
 
     #video.save(BASE_DIR + "static/test.mp4")
     video.save("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/test.mp4")
-    process_video_file(options, fps)
-    socketio.emit('finishProcess', {'progress': 1.0})
+    
+    global cancelled
+    cancelled = False
+    Thread(target=process_video_file, args=[options, fps]).start()
+
     return "OK"
 
 def process_video_file(options: list[bool], targetFPS: float):
+    global cancelled
+
     cap = cv2.VideoCapture(BASE_DIR + "back/static/test.mp4", cv2.CAP_ANY)
     total_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     originalFPS = cap.get(cv2.CAP_PROP_FPS)
@@ -56,21 +65,22 @@ def process_video_file(options: list[bool], targetFPS: float):
     current_time = 0
     target_time = 0
     original_interval = 1 / originalFPS
-    target_interval = 1/ targetFPS
+    target_interval = 1 / targetFPS
 
     while cap.isOpened():
+        if cancelled: break
 
         success, img = cap.read()
         if not success: break
-
+        
+        count += 1
         current_time += original_interval
         if current_time < target_time: continue # 改变帧率
 
         target_time += target_interval
         result = handle_frame(img, options)
         output.write(result)
-        count += 1
-
+        
         current = time.time()
         if current - begin > 1.0:   # 每1秒更新一次进度
             begin = current
@@ -79,6 +89,8 @@ def process_video_file(options: list[bool], targetFPS: float):
 
     cap.release()
     output.release()
+
+    if not cancelled: socketio.emit('finishProcess', {'progress': 1.0})
 
 @app.route('/processed', methods=['GET'])
 def handle_processed():
@@ -126,6 +138,11 @@ def handle_process_frame(data):
         'imageData': compressed.tobytes()
     }
     emit('sendFrame', resultData)
+
+@socketio.on('cancelProcess')
+def handel_cancel():
+    global cancelled
+    cancelled= True
 
 if __name__ == '__main__':
     # app.run(debug=False)
