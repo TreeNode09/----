@@ -272,30 +272,13 @@ const getProcessedVideo = () => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
     lineChart.setOption({
-      tooltip: {
-        trigger: 'axis'
-      },
-      legend: {
-        data: ['车辆行人', '交通标志']
-      },
-      xAxis: {
-        type: 'category',
-        data: lineAxis
-      },
-      yAxis: {
-        type: 'value'
-      },
+      tooltip: {trigger: 'axis'},
+      legend: {data: ['车辆行人', '交通标志']},
+      xAxis: {type: 'category', data: lineAxis},
+      yAxis: {type: 'value'},
       series: [
-        {
-          name: '车辆行人',
-          data: lineData.cpCount,
-          type: 'line'
-        },
-        {
-          name: '交通标志',
-          data: lineData.signCount,
-          type: 'line'
-        }
+        {name: '车辆行人', data: lineData.cpCount, type: 'line', showSymbol: false, smooth: true},
+        {name: '交通标志', data: lineData.signCount, type: 'line', showSymbol: false, smooth: true}
       ]
     })
     uploadStat.value = '完成'
