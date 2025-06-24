@@ -1,6 +1,7 @@
 from . import roadSegmentation
 from . import carPersonDetect
 from . import signDetect
+from . import roadSegmentation2
 import cv2
 import numpy as np
 
@@ -56,6 +57,11 @@ def draw_boxes(img, boxes, names, color=(0, 255, 0), thickness=2):
         cv2.putText(img, str(name), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     return img
 
+def draw_circle(img, coords):
+    for lane in coords:
+        for coord in lane:
+            cv2.circle(img, coord, 5, (0,255,0), -1)
+
 def analyze_data(cp_boxes, cp_classes, sign_boxes, sign_classes):
     return {'cpCount': len(cp_classes), 'signCount': len(sign_classes)}
 
@@ -65,10 +71,12 @@ def handle_frame(img: cv2.Mat, options: list[bool]):
     cp_boxes, cp_classes, sign_boxes, sign_classes = [], [], [], []
 
     if options[0] == True:
-        mask = roadSegmentation.process(img.copy())
-        mask = cv2.resize(mask, (original_size[1], original_size[0]))
-        mask = process_mask(mask)  # <--- 加上这行
-        result = append_mask_to_image(result, mask)
+        # mask = roadSegmentation.process(img.copy())
+        # mask = cv2.resize(mask, (original_size[1], original_size[0]))
+        # mask = process_mask(mask)  # <--- 加上这行
+        # result = append_mask_to_image(result, mask)
+        coords  = roadSegmentation2.process(img)
+        result = draw_circle(result, coords)
 
     if options[1] == True:
         cp_boxes, cp_classes = carPersonDetect.process(img)

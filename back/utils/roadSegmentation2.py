@@ -17,7 +17,7 @@ def str2bool(v):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', help = 'path to config file')
+    # parser.add_argument('config', default = 'ImgDetect/back/utils/culane_res34.py')
     parser.add_argument('--local_rank', type=int, default=0)
 
     parser.add_argument('--dataset', default = None, type = str)
@@ -42,7 +42,7 @@ def get_args():
     parser.add_argument('--log_path', default = None, type = str)
     parser.add_argument('--finetune', default = None, type = str)
     parser.add_argument('--resume', default = None, type = str)
-    parser.add_argument('--test_model', default = None, type = str)
+    parser.add_argument('--test_model', default = 'ImgDetect/back/models/culane_res34.pth' , type = str)
     parser.add_argument('--test_work_dir', default = None, type = str)
     parser.add_argument('--num_lanes', default = None, type = int)
     parser.add_argument('--auto_backup', action='store_false', help='automatically backup current code in the log path')
@@ -72,7 +72,7 @@ def get_args():
 
 def merge_config():
     args = get_args().parse_args()
-    cfg = Config.fromfile(args.config)
+    cfg = Config.fromfile("ImgDetect/back/utils/culane_res34.py")
 
     items = ['dataset','data_root','epoch','batch_size','optimizer','learning_rate',
     'weight_decay','momentum','scheduler','steps','gamma','warmup','warmup_iters',
@@ -141,12 +141,12 @@ def pred2coords(pred, row_anchor, col_anchor, local_width = 1, original_image_wi
 
     return coords
 
-if __name__ == "__main__":
+def process(img):
     torch.backends.cudnn.benchmark = True
 
     args, cfg = merge_config()
     cfg.batch_size = 1
-    print('setting batch_size to 1 for demo generation')
+    # print('setting batch_size to 1 for demo generation')
 
     cfg.row_anchor = np.linspace(0.42,1, cfg.num_row)
     cfg.col_anchor = np.linspace(0,1, cfg.num_col)
@@ -181,10 +181,7 @@ if __name__ == "__main__":
 
     # ----------- 单张图片推理 -----------
     import sys
-    img_path = 'back/static/01355.jpg'      # 你的图片路径
-    save_path = 'back/static/result.jpg'    # 输出路径
 
-    img = cv2.imread(img_path)
     img_h, img_w = img.shape[:2]
     img_tensor = img_transforms(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
     img_tensor = img_tensor[:, -cfg.train_height:, :]  # crop和训练一致
@@ -194,11 +191,14 @@ if __name__ == "__main__":
         pred = net(img_tensor)
 
     coords = pred2coords(pred, cfg.row_anchor, cfg.col_anchor, original_image_width=img_w, original_image_height=img_h)
+    
+    return coords
+    # for lane in coords:
+    #     for coord in lane:
+    #         cv2.circle(img, coord, 5, (0,255,0), -1)
 
-    for lane in coords:
-        for coord in lane:
-            cv2.circle(img, coord, 5, (0,255,0), -1)
-    cv2.imwrite(save_path, img)
-    print(f'单张图片推理完成，结果已保存到: {save_path}')
-    sys.exit(0)
     # ----------- 单张图片推理 END -----------
+if __name__ == "__main__":
+    img = cv2.imread('ImgDetect/back/static/image.png',1)
+    print(img.shape)
+    print(process(img))
