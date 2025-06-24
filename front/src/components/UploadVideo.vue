@@ -2,7 +2,7 @@
 <el-container style="height: 100%;" class="file">
   <el-aside style="width: calc(50vw - 20px); height: 100%;">
     <el-empty v-if="firstVideo" :image-size="200" :description="uploadStat + '中'" style="height: calc(calc(50vw - 20px) * 0.75);"/>
-    <video ref="videoPlayer" controls
+    <video ref="videoPlayer" controls @timeupdate="console.log(videoPlayer.duration)"
       :class="{'none': firstVideo === true}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);">
     </video>
     <div style="margin-top: 5px;">
@@ -54,7 +54,7 @@
           <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        
       </div>
-      <div id="chart" style="height: 400px;"></div>
+      <div id="line-chart" style="height: 400px;"></div>
     </div>
   </el-main>
 </el-container>
@@ -88,8 +88,9 @@ const detectOptions = ref([])
 let socket = null
 let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，这样可以直接在Python里转成布尔型
 
-let chart = null
-let chartOption = {yAxis: {data: ["进度"]}, xAxis: {}, series: [{name: "百分比", type: "bar", data: [0]}]}
+let lineChart = null
+let lineAxis = []
+let lineData = null
 
 const videoURL = ref('')
 
@@ -100,8 +101,7 @@ const HOST_IP = import.meta.env.VITE_BASE_URL //后端url
 onMounted(() => {
   upload.value = useTemplateRef('upload')
   videoPlayer.value = useTemplateRef('videoPlayer')
-  chart = echarts.init(document.getElementById('chart'))
-  chart.setOption(chartOption)
+  lineChart = echarts.init(document.getElementById('line-chart'))
   initSocket()
 })
 
@@ -130,12 +130,19 @@ const initSocket = () => {
     //接收视频处理进度
     socket.on('updateProgress', (data) => {
       videoProgress.value = data.progress
-      chart.setOption({series: [{name: "百分比", data: [videoProgress.value]}]})
     })
 
     socket.on('finishProcess', (data) => {
       videoProgress.value = 1.0
-      uploadStat.value = '完成'
+      if (data.totalFrame == -1) return
+      lineData = data.analysis
+      lineAxis = []
+      for (let i = 0; i < data.totalFrame; i++) { //得到折线图的时间轴
+        let frameTime = Math.floor(i * 1000 / targetFPS.value)
+        let minute = Math.floor(frameTime / (60 * 1000))
+        let second = (frameTime - minute * 60 * 1000) / 1000
+        lineAxis.push(minute.toString() + (second < 10 ? ":0" : ":") + second.toFixed(2))
+      }
       getProcessedVideo()
     })
 
@@ -202,7 +209,6 @@ const checkFormat = (file, files) => {
     uploadStat.value = '选择'
     return
   }
-
   let fileName = file.name
   let extension = fileName.substring(fileName.lastIndexOf('.'))
   if (allowedFormats.indexOf(extension) === -1) {
@@ -258,7 +264,35 @@ const getProcessedVideo = () => {
   .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
+    lineChart.setOption({
+      tooltip: {
+        trigger: 'axis'
+      },
+      legend: {
+        data: ['车辆行人', '交通标志']
+      },
+      xAxis: {
+        type: 'category',
+        data: lineAxis
+      },
+      yAxis: {
+        type: 'value'
+      },
+      series: [
+        {
+          name: '车辆行人',
+          data: lineData.cpCount,
+          type: 'line'
+        },
+        {
+          name: '交通标志',
+          data: lineData.signCount,
+          type: 'line'
+        }
+      ]
+    })
     uploadStat.value = '完成'
+    updateSocketStat('ready', '已就绪')
     fileList.value = []
     firstVideo.value = false
   }).catch(error => alert(error))

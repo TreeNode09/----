@@ -66,6 +66,7 @@ def process_video_file(options: list[bool], targetFPS: float):
     target_time = 0
     original_interval = 1 / originalFPS
     target_interval = 1 / targetFPS
+    analysis = {}
 
     while cap.isOpened():
         if cancelled: break
@@ -78,8 +79,14 @@ def process_video_file(options: list[bool], targetFPS: float):
         if current_time < target_time: continue # 改变帧率
 
         target_time += target_interval
-        result = handle_frame(img, options)
+        result, current_analysis = handle_frame(img, options)
+
         output.write(result)
+        for key in current_analysis:    # analysis字典中的值是数组
+            if key in analysis:
+                analysis[key].append(current_analysis[key])
+            else:
+                analysis[key] = [current_analysis[key]]
         
         current = time.time()
         if current - begin > 1.0:   # 每1秒更新一次进度
@@ -90,7 +97,12 @@ def process_video_file(options: list[bool], targetFPS: float):
     cap.release()
     output.release()
 
-    if not cancelled: socketio.emit('finishProcess', {'progress': 1.0})
+    if not cancelled:
+        resultData = {'analysis': analysis}
+        if len(analysis) == 0: resultData['totalFrame'] = -1
+        else: resultData['totalFrame'] = len(list(analysis.values())[0])
+        
+        socketio.emit('finishProcess', resultData)  # 先把分析的数据发回去
 
 @app.route('/processed', methods=['GET'])
 def handle_processed():
