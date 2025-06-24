@@ -229,9 +229,12 @@ const checkFormat = (file, files) => {
 
 const getOriginalFPS = (file) => {
   return new Promise((resolve, reject) => {
-    window.MediaInfo().then((media) => {
+    window.MediaInfo()//1
+    .then((media) => {
+
       media.analyzeData(
         () => {return file.size},
+
         (chunkSize, offset) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader()
@@ -242,10 +245,14 @@ const getOriginalFPS = (file) => {
             reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
           })
         }
-      ).then((result) => {
+      )
+      .then((result) => {
         resolve(result.media.track[0].FrameRate)
-      }).catch((error) => reject(error))
-    }).catch((error) => reject(error))
+      })
+      .catch((error) => reject(error))
+
+    })
+    .catch((error) => reject(error))
   })
 }
 
