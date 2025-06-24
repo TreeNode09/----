@@ -45,8 +45,8 @@
       <div style="width: 40%; display: inline-block; vertical-align: top;">
         <el-checkbox-group v-model="detectOptions" :disabled="isProcessing" style="float: right;">
           <el-checkbox-button value="road" disabled>车道</el-checkbox-button>
-          <el-checkbox-button value="sign">交通标志</el-checkbox-button>
           <el-checkbox-button value="cp">车辆行人</el-checkbox-button>
+          <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        
       </div>
     </div>
@@ -253,9 +253,9 @@ const startProcessing = () => {
 
   if (detectOptions.value.includes('road')) options[0] = true
   else options[0] = false
-  if (detectOptions.value.includes('sign')) options[1] = true
+  if (detectOptions.value.includes('cp')) options[1] = true
   else options[1] = false
-  if (detectOptions.value.includes('cp')) options[2] = true
+  if (detectOptions.value.includes('sign')) options[2] = true
   else options[2] = false
   
   const interval = 1000 / targetFPS.value

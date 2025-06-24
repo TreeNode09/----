@@ -31,6 +31,18 @@ def append_mask_to_image(image, mask):
 
     return output
 
+def process_mask(mask):
+    if mask.max() == 1:
+        mask = (mask * 255).astype('uint8')
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    # 先闭运算填充小洞
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    # 再开运算去除小噪点
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
+    return mask
+
 def draw_boxes(img, boxes, names, color=(0, 255, 0), thickness=2):
     """
     在图片上绘制识别框和类别标签
@@ -44,10 +56,13 @@ def draw_boxes(img, boxes, names, color=(0, 255, 0), thickness=2):
         cv2.putText(img, str(name), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     return img
 
-def handle_frame(img: cv2.Mat, options: list[bool]):
+def analyze_data(cp_boxes, cp_classes, sign_boxes, sign_classes):
+    return {'cpCount': len(cp_classes), 'signCount': len(sign_classes)}
 
+def handle_frame(img: cv2.Mat, options: list[bool]):
     original_size = img.shape[:2]  # (height, width)
     result = img.copy()
+    cp_boxes, cp_classes, sign_boxes, sign_classes = [], [], [], []
 
     if options[0] == True:
         mask = roadSegmentation.process(img.copy())
@@ -65,23 +80,9 @@ def handle_frame(img: cv2.Mat, options: list[bool]):
         sign_names = [signDetect.model.names[int(cls)] for cls in sign_classes]
         result = draw_boxes(result, sign_boxes, sign_names, color=(255,0,0))
 
-    # cv2.imshow("Result", result)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    analyzed = analyze_data(cp_boxes, cp_classes, sign_boxes, sign_classes)
 
-    return result
-
-def process_mask(mask):
-    if mask.max() == 1:
-        mask = (mask * 255).astype('uint8')
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-    # 先闭运算填充小洞
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    # 再开运算去除小噪点
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
-    return mask
+    return result, analyzed
 
 if __name__ == "__main__":
     img = cv2.imread("ImgDetect\\back\\static\\image.png")

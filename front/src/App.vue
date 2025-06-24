@@ -71,6 +71,16 @@ const isVideo = ref(false)
   font-weight: bold;
 }
 
+div .el-button.is-text:not(.is-disabled):hover
+{
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.el-button.is-text .el-icon
+{
+  color: var(--el-text-color-primary);
+}
+
 .el-notification.right
 {
   --el-notification-width: 250px;
