@@ -49,7 +49,7 @@
       </div>
       <div style="width: 40%; display: inline-block; vertical-align: top;">
         <el-checkbox-group v-model="detectOptions" :disabled="uploadStat!=='上传'" style="float: right;">
-          <el-checkbox-button value="road" disabled>车道</el-checkbox-button>
+          <el-checkbox-button value="road">车道</el-checkbox-button>
           <el-checkbox-button value="cp">车辆行人</el-checkbox-button>
           <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        

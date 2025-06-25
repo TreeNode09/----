@@ -61,6 +61,7 @@ def draw_circle(img, coords):
     for lane in coords:
         for coord in lane:
             cv2.circle(img, coord, 5, (0,255,0), -1)
+    return img
 
 def analyze_data(cp_boxes, cp_classes, sign_boxes, sign_classes):
     return {'cpCount': len(cp_classes), 'signCount': len(sign_classes)}
