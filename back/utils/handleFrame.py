@@ -1,7 +1,7 @@
 from . import roadSegmentation
 from . import carPersonDetect
 from . import signDetect
-from . import roadSegmentation2
+from .laneUtils import roadSegmentation2
 import cv2
 import numpy as np
 

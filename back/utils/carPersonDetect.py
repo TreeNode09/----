@@ -1,5 +1,5 @@
 from ultralytics import YOLO
-from . import config
+from .laneUtils import config
 import cv2
 
 model = YOLO(config.BASE_DIR + 'back/models/car_person.pt')

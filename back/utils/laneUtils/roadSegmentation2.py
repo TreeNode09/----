@@ -71,7 +71,7 @@ def get_args():
 
 def merge_config():
     args = get_args().parse_args()
-    cfg = Config.fromfile(BASE_DIR + "back/utils/culane_res34.py")
+    cfg = Config.fromfile(BASE_DIR + "back/utils/laneUtils/culane_res34.py")
 
     items = ['dataset','data_root','epoch','batch_size','optimizer','learning_rate',
     'weight_decay','momentum','scheduler','steps','gamma','warmup','warmup_iters',
@@ -96,7 +96,7 @@ def merge_config():
 
 def get_model(cfg):
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    module_name = f"model.model_{cfg.dataset.lower()}"
+    module_name = f"laneUtils.model.model_{cfg.dataset.lower()}"
     return importlib.import_module(module_name).get_model(cfg)
 
 def pred2coords(pred, row_anchor, col_anchor, local_width = 1, original_image_width = 1640, original_image_height = 590):
