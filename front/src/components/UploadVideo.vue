@@ -54,7 +54,7 @@
           <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        
       </div>
-      <div id="line-chart" style="height: 400px;"></div>
+      <div id="line-chart" style="height: 400px;" @click="setVideoTime"></div>
     </div>
   </el-main>
 </el-container>
@@ -285,7 +285,15 @@ const getProcessedVideo = () => {
     updateSocketStat('ready', '已就绪')
     fileList.value = []
     firstVideo.value = false
+    videoProgress.value = 0.0
   }).catch(error => alert(error))
+}
+
+const setVideoTime = (events) => {
+  console.log(events)
+  const pixelPos = [events.offsetX, events.offsetY]
+  const gridPos = lineChart.convertFromPixel('grid', pixelPos)
+  videoPlayer.value.currentTime = gridPos[0] / targetFPS.value
 }
 
 onBeforeUnmount(() => {
