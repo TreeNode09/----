@@ -3,7 +3,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 import numpy as np
 import importlib
-from config import Config
+from .config import Config, BASE_DIR
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -42,7 +42,7 @@ def get_args():
     parser.add_argument('--log_path', default = None, type = str)
     parser.add_argument('--finetune', default = None, type = str)
     parser.add_argument('--resume', default = None, type = str)
-    parser.add_argument('--test_model', default = 'ImgDetect/back/models/culane_res34.pth' , type = str)
+    parser.add_argument('--test_model', default = BASE_DIR + 'back/models/culane_res34.pth' , type = str)
     parser.add_argument('--test_work_dir', default = None, type = str)
     parser.add_argument('--num_lanes', default = None, type = int)
     parser.add_argument('--auto_backup', action='store_false', help='automatically backup current code in the log path')
@@ -67,12 +67,11 @@ def get_args():
     parser.add_argument('--cumsum', default = None, type = str2bool)
     parser.add_argument('--masked', default = None, type = str2bool)
     
-    
     return parser
 
 def merge_config():
     args = get_args().parse_args()
-    cfg = Config.fromfile("ImgDetect/back/utils/culane_res34.py")
+    cfg = Config.fromfile(BASE_DIR + "back/utils/culane_res34.py")
 
     items = ['dataset','data_root','epoch','batch_size','optimizer','learning_rate',
     'weight_decay','momentum','scheduler','steps','gamma','warmup','warmup_iters',
@@ -141,46 +140,47 @@ def pred2coords(pred, row_anchor, col_anchor, local_width = 1, original_image_wi
 
     return coords
 
-def process(img):
-    torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = True
 
-    args, cfg = merge_config()
-    cfg.batch_size = 1
-    # print('setting batch_size to 1 for demo generation')
+args, cfg = merge_config()
+cfg.batch_size = 1
+# print('setting batch_size to 1 for demo generation')
 
-    cfg.row_anchor = np.linspace(0.42,1, cfg.num_row)
-    cfg.col_anchor = np.linspace(0,1, cfg.num_col)
+cfg.row_anchor = np.linspace(0.42,1, cfg.num_row)
+cfg.col_anchor = np.linspace(0,1, cfg.num_col)
 
-    if cfg.dataset == 'CULane':
-        cls_num_per_lane = 18
-        img_w, img_h = 1640, 590
-    elif cfg.dataset == 'Tusimple':
-        cls_num_per_lane = 56
-        img_w, img_h = 1280, 720
+if cfg.dataset == 'CULane':
+    cls_num_per_lane = 18
+    img_w, img_h = 1640, 590
+elif cfg.dataset == 'Tusimple':
+    cls_num_per_lane = 56
+    img_w, img_h = 1280, 720
+else:
+    raise NotImplementedError
+
+net = get_model(cfg)
+
+state_dict = torch.load(cfg.test_model, map_location='cpu')['model']
+compatible_state_dict = {}
+for k, v in state_dict.items():
+    if 'module.' in k:
+        compatible_state_dict[k[7:]] = v
     else:
-        raise NotImplementedError
+        compatible_state_dict[k] = v
 
-    net = get_model(cfg)
+net.load_state_dict(compatible_state_dict, strict=False)
+net.eval()
 
-    state_dict = torch.load(cfg.test_model, map_location='cpu')['model']
-    compatible_state_dict = {}
-    for k, v in state_dict.items():
-        if 'module.' in k:
-            compatible_state_dict[k[7:]] = v
-        else:
-            compatible_state_dict[k] = v
+img_transforms = transforms.Compose([
+    transforms.Resize((int(cfg.train_height / cfg.crop_ratio), cfg.train_width)),
+    transforms.ToTensor(),
+    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+])
 
-    net.load_state_dict(compatible_state_dict, strict=False)
-    net.eval()
+import sys
 
-    img_transforms = transforms.Compose([
-        transforms.Resize((int(cfg.train_height / cfg.crop_ratio), cfg.train_width)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-    ])
-
+def process(img):
     # ----------- 单张图片推理 -----------
-    import sys
 
     img_h, img_w = img.shape[:2]
     img_tensor = img_transforms(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))

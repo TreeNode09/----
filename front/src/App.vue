@@ -107,6 +107,11 @@ div .el-button.is-text:not(.is-disabled):hover
   color: var(--el-color-success);
 }
 
+.is-disabled.is-checked.selected .el-checkbox-button__inner
+{
+  background-color: var(--el-color-primary-light-7);
+}
+
 .el-upload
 {
   width: 100%;
