@@ -44,19 +44,28 @@ def process_mask(mask):
     cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
     return mask
 
-def draw_boxes(img, boxes, names, speeds, color=(0, 255, 0), thickness=2):
-    """
-    在图片上绘制识别框和类别标签
-    :param img: 原图
-    :param boxes: [[x1, y1, x2, y2], ...]
-    :param classes: [class_name1, class_name2, ...]
-    """
-    for box, name, speed in zip(boxes, names, speeds):
-        x1, y1, x2, y2 = map(int, box)
-        cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
-        cv2.putText(img, str(name), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        if(speed != -1):
-            cv2.putText(img, str(speed)+'km/h', (x2-10, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+def draw_boxes(img: cv2.Mat, boxes: list, names: list[str], infos: list):
+    for i in range(len(boxes)):
+        color = (0, 0, 255)
+        text = ""
+
+        index = names[i].find('-')
+        if index == -1:
+            if names[i] == 'car':
+                if infos[i] != -1 and abs(infos[i]) < 100: text = str(infos[i]) + 'km/h'
+                color = (0, 255, 0)
+            elif names[i] == 'person': color = (0, 255, 150)
+        else:
+            text = names[i][index + 1:]
+            if index == 2: color = (255, 150, 0)    # go-
+            elif index == 3: color = (0, 0, 255)    # not-
+            elif index == 4: color = (0, 200, 255)  # warn-
+            elif index == 5: color = (0, 100, 255)  # limit-
+
+        x1, y1, x2, y2 = map(int, boxes[i])
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
     return img
 
 def draw_circle(img, coords):
@@ -65,13 +74,17 @@ def draw_circle(img, coords):
             cv2.circle(img, coord, 5, (0,255,0), -1)
     return img
 
-def analyze_data(cp_boxes, cp_names, sign_boxes, sign_classes):
-    return {'cpCount': len(cp_names), 'signCount': len(sign_classes)}
+def analyze_data(cp_names: list, sign_names: list, min_distance: float):
+    return {
+        'carCount': cp_names.count('car'),
+        'personCount': cp_names.count('person'),
+        'signCount': len(sign_names),
+        'minDistance': min_distance
+    }
 
-def handle_frame(img: cv2.Mat, options: list[bool]):
-    original_size = img.shape[:2]  # (height, width)
+def handle_frame(img: cv2.Mat, options: list[bool], fps: float):
     result = img.copy()
-    cp_boxes, cp_names, sign_boxes, sign_classes = [], [], [], []
+    cp_names, sign_names, min_distance = [], [], 10000
 
     if options[0] == True:
         # mask = roadSegmentation.process(img.copy())
@@ -82,15 +95,14 @@ def handle_frame(img: cv2.Mat, options: list[bool]):
         result = draw_circle(result, coords)
 
     if options[1] == True:
-        cp_boxes, cp_names, speeds = carPersonDetect.process(img)
-        result = draw_boxes(result, cp_boxes, cp_names, speeds, color=(0,255,0))
+        cp_boxes, cp_names, speeds, min_distance = carPersonDetect.process(img, fps)
+        result = draw_boxes(result, cp_boxes, cp_names, speeds)
 
     if options[2] == True:
-        sign_boxes, sign_classes = signDetect.process(img)
-        sign_names = [signDetect.model.names[int(cls)] for cls in sign_classes]
-        result = draw_boxes(result, sign_boxes, sign_names, color=(255,0,0))
+        sign_boxes, sign_names = signDetect.process(img)
+        result = draw_boxes(result, sign_boxes, sign_names, [])
 
-    analyzed = analyze_data(cp_boxes, cp_names, sign_boxes, sign_classes)
+    analyzed = analyze_data(cp_names, sign_names, min_distance)
 
     return result, analyzed
 

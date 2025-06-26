@@ -40,8 +40,8 @@ def handle_upload():
     options = [bool(int(option)) for option in optionsStr.split(',')]
     fps = float(fpsStr)
 
-    #video.save(BASE_DIR + "static/test.mp4")
-    video.save("ImgDetect/back/static/test.mp4")
+    #video.save("ImgDetect/back/static/test.mp4")
+    video.save("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/test.mp4")
     
     global cancelled
     cancelled = False
@@ -79,7 +79,7 @@ def process_video_file(options: list[bool], targetFPS: float):
         if current_time < target_time: continue # 改变帧率
 
         target_time += target_interval
-        result, current_analysis = handle_frame(img, options)
+        result, current_analysis = handle_frame(img, options, targetFPS)
 
         output.write(result)
         for key in current_analysis:    # analysis字典中的值是数组
@@ -96,7 +96,7 @@ def process_video_file(options: list[bool], targetFPS: float):
 
     cap.release()
     output.release()
-    print("annnn:", analysis)
+
     if not cancelled:
         resultData = {'analysis': analysis}
         if len(analysis) == 0: resultData['totalFrame'] = -1
@@ -106,7 +106,8 @@ def process_video_file(options: list[bool], targetFPS: float):
 
 @app.route('/processed', methods=['GET'])
 def handle_processed():
-    return send_file("C:/专业实训三/ImgDetect/back/static/result.mp4")
+    #return send_file("C:/专业实训三/ImgDetect/back/static/result.mp4")
+    return send_file("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/result.mp4")
 
 @socketio.on('connect')
 def handle_connect():

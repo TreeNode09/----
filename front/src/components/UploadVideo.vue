@@ -91,7 +91,6 @@ let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，�
 let lineChart = null
 let lineAxis = []
 let originalData = null
-let lineData = null
 
 const videoURL = ref('')
 
@@ -135,10 +134,7 @@ const initSocket = () => {
     socket.on('finishProcess', (data) => {
       videoProgress.value = 1.0
       if (data.totalFrame == -1) return
-
-      originalData = data.analysis
-      lineData = smoothData(5)
-      
+      originalData = data.analysis   
       lineAxis = []
       for (let i = 0; i < data.totalFrame; i++) { //得到折线图的时间轴
         let frameTime = Math.floor(i * 1000 / targetFPS.value)
@@ -185,20 +181,26 @@ const updateSocketStat = (stat, message) => {
   socketMessage.value = message
 }
 
-const smoothData = (boxSize) => {
-  let smoothed = Object.assign({}, originalData)
-  for (let key in originalData) {
-    smoothed[key] = []
-    let dataBox = 0
-    for (let i = 0; i < originalData[key].length; i++) {
-      dataBox += originalData[key][i]
+const smoothData = (boxSize, original, toInt) => {
+  let smoothed = []
+  let dataBox = 0
+  for (let i = 0; i < original.length; i++) {
+    if (original[i] === 10000) {
+      smoothed.push(NaN)
+      continue
+    }
+    dataBox += original[i]
       if (i < boxSize) {
-        smoothed[key].push(Math.floor(dataBox / (i + 1)))
+        smoothed.push((dataBox / (i + 1)).toFixed(2))
       }
       else {
-        dataBox -= originalData[key][i - boxSize]
-        smoothed[key].push(Math.floor(dataBox / boxSize))
+        dataBox -= original[i - boxSize]
+        smoothed.push((dataBox / boxSize).toFixed(2))
       }
+  }
+  if (toInt === true) {
+    for (let i = 0; i < smoothed.length; i++) {
+      smoothed[i] = Math.floor(smoothed[i])
     }
   }
   return smoothed
@@ -297,14 +299,37 @@ const getProcessedVideo = () => {
     if (lineChart !== null) {lineChart.dispose()}
     lineChart = echarts.init(document.getElementById('line-chart'))
     lineChart.setOption({
-      grid: {top: '25px', bottom: '25px', left: '3%', right: '3%'},
+      grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
       tooltip: {trigger: 'axis'},
-      legend: {data: ['车辆行人', '交通标志']},
+      legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
       xAxis: {type: 'category', data: lineAxis},
-      yAxis: {type: 'value', minInterval: 1},
+      yAxis: [
+        {
+          name: '个数', type: 'value', minInterval: 1,
+          axisLine: {show: true, lineStyle: {color: '#337ECC'}}
+        },
+        {
+          name: '距离(m)', type: 'value', minInterval: 1, position: 'right',
+          axisLine: {show: true, lineStyle: {color: '#529B2E'}}
+        }
+      ],
       series: [
-        {name: '车辆行人', data: lineData.cpCount, type: 'line', showSymbol: false, smooth: true},
-        {name: '交通标志', data: lineData.signCount, type: 'line', showSymbol: false, smooth: true}
+        {
+          name: '车辆', data: smoothData(5, originalData.carCount, true),
+          type: 'line', showSymbol: false, smooth: true, color: '#337ECC'
+        },
+        {
+          name: '行人', data: smoothData(5, originalData.personCount, true),
+          type: 'line', showSymbol: false, smooth: true, color: '#79BBFF'
+        },
+        {
+          name: '交通标志', data: smoothData(5, originalData.signCount, true),
+          type: 'line', showSymbol: false, smooth: true, color: '#9FCEFF'
+        },
+        {
+          name: '最近距离', data: smoothData(5, originalData.minDistance, false),
+          type: 'line', showSymbol: false, smooth: true, color: '#67C23A', yAxisIndex: 1
+        }
       ]
     })
     uploadStat.value = '完成'
