@@ -2,8 +2,8 @@
 <el-container style="height: 100%;" class="file">
   <el-aside style="width: calc(50vw - 20px); height: 100%;">
     <el-empty v-if="firstVideo" :image-size="200" :description="uploadStat + '中'" style="height: calc(calc(50vw - 20px) * 0.75);"/>
-    <video ref="videoPlayer" controls @timeupdate="console.log(videoPlayer.duration)"
-      :class="{'none': firstVideo === true}" style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);">
+    <video ref="videoPlayer" controls :class="{'none': firstVideo === true}" 
+      style="width: 100%; height: calc(calc(50vw - 20px) * 0.75);">
     </video>
     <div style="margin-top: 5px;">
       <div class="half">
@@ -49,13 +49,13 @@
       </div>
       <div style="width: 40%; display: inline-block; vertical-align: top;">
         <el-checkbox-group v-model="detectOptions" :disabled="uploadStat!=='上传'" style="float: right;">
-          <el-checkbox-button value="road">车道</el-checkbox-button>
-          <el-checkbox-button value="cp">车辆行人</el-checkbox-button>
-          <el-checkbox-button value="sign">交通标志</el-checkbox-button>
+          <el-checkbox-button value="road" :class="{'selected': detectOptions.includes('road')}">车道</el-checkbox-button>
+          <el-checkbox-button value="cp" :class="{'selected': detectOptions.includes('cp')}">车辆行人</el-checkbox-button>
+          <el-checkbox-button value="sign" :class="{'selected': detectOptions.includes('sign')}">交通标志</el-checkbox-button>
         </el-checkbox-group>        
       </div>
-      <div id="line-chart" style="height: 400px;" @click="setVideoTime"></div>
     </div>
+    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 102px); margin-top: 10px;" @click="setVideoTime"></div>
   </el-main>
 </el-container>
 </template>
@@ -90,6 +90,7 @@ let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，�
 
 let lineChart = null
 let lineAxis = []
+let originalData = null
 let lineData = null
 
 const videoURL = ref('')
@@ -101,7 +102,6 @@ const HOST_IP = import.meta.env.VITE_BASE_URL //后端url
 onMounted(() => {
   upload.value = useTemplateRef('upload')
   videoPlayer.value = useTemplateRef('videoPlayer')
-  lineChart = echarts.init(document.getElementById('line-chart'))
   initSocket()
 })
 
@@ -135,7 +135,10 @@ const initSocket = () => {
     socket.on('finishProcess', (data) => {
       videoProgress.value = 1.0
       if (data.totalFrame == -1) return
-      lineData = data.analysis
+
+      originalData = data.analysis
+      lineData = smoothData(5)
+      
       lineAxis = []
       for (let i = 0; i < data.totalFrame; i++) { //得到折线图的时间轴
         let frameTime = Math.floor(i * 1000 / targetFPS.value)
@@ -182,6 +185,25 @@ const updateSocketStat = (stat, message) => {
   socketMessage.value = message
 }
 
+const smoothData = (boxSize) => {
+  let smoothed = Object.assign({}, originalData)
+  for (let key in originalData) {
+    smoothed[key] = []
+    let dataBox = 0
+    for (let i = 0; i < originalData[key].length; i++) {
+      dataBox += originalData[key][i]
+      if (i < boxSize) {
+        smoothed[key].push(Math.floor(dataBox / (i + 1)))
+      }
+      else {
+        dataBox -= originalData[key][i - boxSize]
+        smoothed[key].push(Math.floor(dataBox / boxSize))
+      }
+    }
+  }
+  return smoothed
+}
+
 function uploadVideo(item){
   if (detectOptions.value.includes('road')) options[0] = 1
   else options[0] = 0
@@ -195,6 +217,8 @@ function uploadVideo(item){
   data.append("options", options)
   data.append('fps', targetFPS.value)
 
+  videoProgress.value = 0.0
+
   axios.post('/upload', data
   ).then(response => {
     uploadStat.value = '处理'
@@ -204,7 +228,6 @@ function uploadVideo(item){
 
 //添加文件后立刻检查文件格式
 const checkFormat = (file, files) => {
-  console.log(fileList.value)
   if (files.length === 0) {
     uploadStat.value = '选择'
     return
@@ -271,11 +294,14 @@ const getProcessedVideo = () => {
   .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
+    if (lineChart !== null) {lineChart.dispose()}
+    lineChart = echarts.init(document.getElementById('line-chart'))
     lineChart.setOption({
+      grid: {top: '25px', bottom: '25px', left: '3%', right: '3%'},
       tooltip: {trigger: 'axis'},
       legend: {data: ['车辆行人', '交通标志']},
       xAxis: {type: 'category', data: lineAxis},
-      yAxis: {type: 'value'},
+      yAxis: {type: 'value', minInterval: 1},
       series: [
         {name: '车辆行人', data: lineData.cpCount, type: 'line', showSymbol: false, smooth: true},
         {name: '交通标志', data: lineData.signCount, type: 'line', showSymbol: false, smooth: true}
@@ -285,12 +311,10 @@ const getProcessedVideo = () => {
     updateSocketStat('ready', '已就绪')
     fileList.value = []
     firstVideo.value = false
-    videoProgress.value = 0.0
   }).catch(error => alert(error))
 }
 
 const setVideoTime = (events) => {
-  console.log(events)
   const pixelPos = [events.offsetX, events.offsetY]
   const gridPos = lineChart.convertFromPixel('grid', pixelPos)
   videoPlayer.value.currentTime = gridPos[0] / targetFPS.value

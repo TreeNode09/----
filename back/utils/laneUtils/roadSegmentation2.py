@@ -42,7 +42,7 @@ def get_args():
     parser.add_argument('--log_path', default = None, type = str)
     parser.add_argument('--finetune', default = None, type = str)
     parser.add_argument('--resume', default = None, type = str)
-    parser.add_argument('--test_model', default = 'ImgDetect/back/models/culane_res34.pth' , type = str)
+    parser.add_argument('--test_model', default = BASE_DIR + 'back/models/culane_res34.pth' , type = str)
     parser.add_argument('--test_work_dir', default = None, type = str)
     parser.add_argument('--num_lanes', default = None, type = int)
     parser.add_argument('--auto_backup', action='store_false', help='automatically backup current code in the log path')
@@ -67,12 +67,11 @@ def get_args():
     parser.add_argument('--cumsum', default = None, type = str2bool)
     parser.add_argument('--masked', default = None, type = str2bool)
     
-    
     return parser
 
 def merge_config():
     args = get_args().parse_args()
-    cfg = Config.fromfile("ImgDetect/back/utils/laneUtils/culane_res34.py")
+    cfg = Config.fromfile(BASE_DIR + "back/utils/laneUtils/culane_res34.py")
 
     items = ['dataset','data_root','epoch','batch_size','optimizer','learning_rate',
     'weight_decay','momentum','scheduler','steps','gamma','warmup','warmup_iters',

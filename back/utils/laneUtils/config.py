@@ -1,4 +1,3 @@
-
 import json
 import os.path as osp
 import shutil
@@ -10,7 +9,7 @@ from importlib import import_module
 
 from addict import Dict
 
-BASE_DIR = "ImgDetect/"
+BASE_DIR = ""
 DEVICE = 'cpu'
 BASE_KEY = '_base_'
 DELETE_KEY = '_delete_'
