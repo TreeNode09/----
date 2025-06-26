@@ -96,7 +96,7 @@ def process_video_file(options: list[bool], targetFPS: float):
 
     cap.release()
     output.release()
-
+    print("annnn:", analysis)
     if not cancelled:
         resultData = {'analysis': analysis}
         if len(analysis) == 0: resultData['totalFrame'] = -1

@@ -17,7 +17,7 @@ class Tracker:
     def __init__(self):
         # 存储目标的中心位置
         self.center_points = {}
-        self.id_widths = {}
+        self.id_heights = {}
         # ID计数
         # 每当检测到一个新的目标id时, 计数将增加1
         self.id_count = 1
@@ -25,7 +25,7 @@ class Tracker:
     @timed_method(3)
     def __empty__(self):
        self.center_points = {}
-       self.id_widths = {}
+       self.id_heights = {}
 
     def update(self, rect):
     
@@ -39,12 +39,12 @@ class Tracker:
 
             if dist < 35:
                 self.center_points[id] = (cx, cy)
-                self.id_widths[id] = x2-x1
+                self.id_heights[id] = y2-y1
                 return id
             
         #说明未被检测，分配id
         self.center_points[self.id_count] = (cx, cy)
-        self.id_widths[self.id_count] = x2-x1
+        self.id_heights[self.id_count] = y2-y1
         self.id_count += 1
 
         return 0

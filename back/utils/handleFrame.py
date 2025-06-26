@@ -65,13 +65,13 @@ def draw_circle(img, coords):
             cv2.circle(img, coord, 5, (0,255,0), -1)
     return img
 
-def analyze_data(cp_boxes, cp_classes, sign_boxes, sign_classes):
-    return {'cpCount': len(cp_classes), 'signCount': len(sign_classes)}
+def analyze_data(cp_boxes, cp_names, sign_boxes, sign_classes):
+    return {'cpCount': len(cp_names), 'signCount': len(sign_classes)}
 
 def handle_frame(img: cv2.Mat, options: list[bool]):
     original_size = img.shape[:2]  # (height, width)
     result = img.copy()
-    cp_boxes, cp_classes, sign_boxes, sign_classes = [], [], [], []
+    cp_boxes, cp_names, sign_boxes, sign_classes = [], [], [], []
 
     if options[0] == True:
         # mask = roadSegmentation.process(img.copy())
@@ -90,7 +90,7 @@ def handle_frame(img: cv2.Mat, options: list[bool]):
         sign_names = [signDetect.model.names[int(cls)] for cls in sign_classes]
         result = draw_boxes(result, sign_boxes, sign_names, color=(255,0,0))
 
-    analyzed = analyze_data(cp_boxes, cp_classes, sign_boxes, sign_classes)
+    analyzed = analyze_data(cp_boxes, cp_names, sign_boxes, sign_classes)
 
     return result, analyzed
 

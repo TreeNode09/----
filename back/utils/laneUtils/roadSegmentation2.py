@@ -3,7 +3,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 import numpy as np
 import importlib
-from .config import Config
+from .config import Config, BASE_DIR
 
 def str2bool(v):
     if isinstance(v, bool):
