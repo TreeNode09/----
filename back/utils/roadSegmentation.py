@@ -8,7 +8,7 @@ import albumentations as albu
 import torch
 import segmentation_models_pytorch as smp
 
-from . import config
+from .laneUtils import config
 
 ### Dataloader
 def process_image(image, augmentation=None, preprocessing=None):

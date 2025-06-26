@@ -1,7 +1,7 @@
 from . import roadSegmentation
 from . import carPersonDetect
 from . import signDetect
-from . import roadSegmentation2
+from utils.laneUtils import roadSegmentation2
 import cv2
 import numpy as np
 
@@ -44,17 +44,19 @@ def process_mask(mask):
     cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
     return mask
 
-def draw_boxes(img, boxes, names, color=(0, 255, 0), thickness=2):
+def draw_boxes(img, boxes, names, speeds, color=(0, 255, 0), thickness=2):
     """
     在图片上绘制识别框和类别标签
     :param img: 原图
     :param boxes: [[x1, y1, x2, y2], ...]
     :param classes: [class_name1, class_name2, ...]
     """
-    for box, name in zip(boxes, names):
+    for box, name, speed in zip(boxes, names, speeds):
         x1, y1, x2, y2 = map(int, box)
         cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
         cv2.putText(img, str(name), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        if(speed != -1):
+            cv2.putText(img, str(speed)+'km/h', (x2-10, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     return img
 
 def draw_circle(img, coords):
@@ -80,9 +82,8 @@ def handle_frame(img: cv2.Mat, options: list[bool]):
         result = draw_circle(result, coords)
 
     if options[1] == True:
-        cp_boxes, cp_classes = carPersonDetect.process(img)
-        cp_names = [carPersonDetect.model.names[int(cls)] for cls in cp_classes]
-        result = draw_boxes(result, cp_boxes, cp_names, color=(0,255,0))
+        cp_boxes, cp_names, speeds = carPersonDetect.process(img)
+        result = draw_boxes(result, cp_boxes, cp_names, speeds, color=(0,255,0))
 
     if options[2] == True:
         sign_boxes, sign_classes = signDetect.process(img)

@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, emit
 from threading import Thread
 
 from utils.handleFrame import *
-from utils.config import BASE_DIR
+from utils.laneUtils.config import BASE_DIR
 
 import cv2
 import os

@@ -3,7 +3,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 import numpy as np
 import importlib
-from config import Config
+from .config import Config
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -94,10 +94,12 @@ def merge_config():
         cfg.col_anchor = np.linspace(0, 1, cfg.num_col)
     
     return args, cfg
+    
 
 def get_model(cfg):
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    module_name = f"model.model_{cfg.dataset.lower()}"
+    module_name = f"utils.laneUtils.model.model_{cfg.dataset.lower()}"
+    print(module_name)
     return importlib.import_module(module_name).get_model(cfg)
 
 def pred2coords(pred, row_anchor, col_anchor, local_width = 1, original_image_width = 1640, original_image_height = 590):
