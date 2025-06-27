@@ -91,6 +91,7 @@ let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，�
 let lineChart = null
 let lineAxis = []
 let originalData = null
+const sharedOptions = {type: 'line', showSymbol: false, smooth: true, emphasis: {focus: 'series'}}
 
 const videoURL = ref('')
 
@@ -181,7 +182,7 @@ const updateSocketStat = (stat, message) => {
   socketMessage.value = message
 }
 
-const smoothData = (boxSize, original, toInt) => {
+const smoothData = (boxSize, original, offset, toInt) => {
   let smoothed = []
   let dataBox = 0
   for (let i = 0; i < original.length; i++) {
@@ -201,6 +202,11 @@ const smoothData = (boxSize, original, toInt) => {
   if (toInt === true) {
     for (let i = 0; i < smoothed.length; i++) {
       smoothed[i] = Math.floor(smoothed[i])
+    }
+  }
+  if (offset !== 0) {
+    for (let i = 0; i < offset; i++) {
+      smoothed[i] = NaN
     }
   }
   return smoothed
@@ -254,12 +260,9 @@ const checkFormat = (file, files) => {
 
 const getOriginalFPS = (file) => {
   return new Promise((resolve, reject) => {
-    window.MediaInfo()//1
-    .then((media) => {
-
+    window.MediaInfo().then((media) => {
       media.analyzeData(
         () => {return file.size},
-
         (chunkSize, offset) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader()
@@ -269,15 +272,10 @@ const getOriginalFPS = (file) => {
             }
             reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
           })
-        }
-      )
-      .then((result) => {
+        }).then((result) => {
         resolve(result.media.track[0].FrameRate)
-      })
-      .catch((error) => reject(error))
-
-    })
-    .catch((error) => reject(error))
+      }).catch((error) => reject(error))
+    }).catch((error) => reject(error))
   })
 }
 
@@ -314,22 +312,19 @@ const getProcessedVideo = () => {
         }
       ],
       series: [
-        {
-          name: '车辆', data: smoothData(5, originalData.carCount, true),
-          type: 'line', showSymbol: false, smooth: true, color: '#337ECC'
-        },
-        {
-          name: '行人', data: smoothData(5, originalData.personCount, true),
-          type: 'line', showSymbol: false, smooth: true, color: '#79BBFF'
-        },
-        {
-          name: '交通标志', data: smoothData(5, originalData.signCount, true),
-          type: 'line', showSymbol: false, smooth: true, color: '#9FCEFF'
-        },
-        {
-          name: '最近距离', data: smoothData(5, originalData.minDistance, false),
-          type: 'line', showSymbol: false, smooth: true, color: '#67C23A', yAxisIndex: 1
-        }
+        Object.assign({
+          name: '车辆', data: smoothData(5, originalData.carCount, 0, true), color: '#337ECC'
+        }, sharedOptions),
+        Object.assign({
+          name: '行人', data: smoothData(5, originalData.personCount, 0, true), color: '#79BBFF'
+        }, sharedOptions),
+        Object.assign({
+          name: '交通标志', data: smoothData(5, originalData.signCount, 0, true), color: '#9FCEFF'
+        }, sharedOptions),
+        Object.assign({
+          name: '最近距离', data: smoothData(5, originalData.minDistance, 5, false), color: '#67C23A',
+          yAxisIndex: 1, lineStyle: {type: 'dashed'}
+        }, sharedOptions)
       ]
     })
     uploadStat.value = '完成'

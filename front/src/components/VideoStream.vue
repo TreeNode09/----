@@ -50,6 +50,7 @@
         </el-checkbox-group>        
       </div>
     </div>
+    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 102px); margin-top: 10px;"></div>
   </el-main>
 </el-container>
 </template>
@@ -59,6 +60,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
 import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold, Clock, PictureFilled } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 
 import InfoIcon from './InfoIcon.vue'
 import ConnectInfo from './ConnectInfo.vue'
@@ -92,6 +94,11 @@ let options = [false, false, false] //检测选项
 let cameraCanvas = null
 let cameraCanvasContext = null
 let frame = null
+
+let lineChart = null
+let lineAxis = []
+let originalData = null
+const sharedOptions = {type: 'line', showSymbol: false, smooth: true, emphasis: {focus: 'series'}}
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
@@ -296,7 +303,8 @@ const sendCamera = () => {
           height: frameInfo.height
         },
         options: options,
-        quality: streamQuality.value
+        quality: streamQuality.value,
+        fps: targetFPS.value
       })
     }
     reader.readAsArrayBuffer(blob);

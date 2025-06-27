@@ -44,6 +44,13 @@ def process_mask(mask):
     cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
     return mask
 
+def hex_to_bgr(hex):
+    hex = hex.lstrip('#')
+    red = int(hex[0:2], 16)
+    green = int(hex[2:4], 16)
+    blue = int(hex[4:6], 16)
+    return (blue, green, red)
+
 def draw_boxes(img: cv2.Mat, boxes: list, names: list[str], infos: list):
     for i in range(len(boxes)):
         color = (0, 0, 255)
@@ -53,18 +60,22 @@ def draw_boxes(img: cv2.Mat, boxes: list, names: list[str], infos: list):
         if index == -1:
             if names[i] == 'car':
                 if infos[i] != -1 and abs(infos[i]) < 100: text = str(infos[i]) + 'km/h'
-                color = (0, 255, 0)
-            elif names[i] == 'person': color = (0, 255, 150)
+                color = hex_to_bgr("#54A7FF")
+            elif names[i] == 'person':
+                color = hex_to_bgr("#A6D3FF")
         else:
             text = names[i][index + 1:]
-            if index == 2: color = (255, 150, 0)    # go-
-            elif index == 3: color = (0, 0, 255)    # not-
-            elif index == 4: color = (0, 200, 255)  # warn-
-            elif index == 5: color = (0, 100, 255)  # limit-
+            if index == 2: color = hex_to_bgr("#25D5D5")    # go-
+            elif index == 3: color = hex_to_bgr("#F56C6C")  # not-
+            elif index == 4: color = hex_to_bgr("#E6A23C")  # warn-
+            elif index == 5: color = hex_to_bgr('#C45656')  # limit-
 
         x1, y1, x2, y2 = map(int, boxes[i])
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
-        cv2.putText(img, text, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+        (text_width, text_height), text_bottom = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        if text != "": cv2.rectangle(img, (x1, y1 - text_height - text_bottom), (x1 + text_width, y1), color, -1)
+        cv2.putText(img, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
     return img
 

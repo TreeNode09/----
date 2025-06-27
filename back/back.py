@@ -133,6 +133,7 @@ def handle_process_frame(data):
     height = image_data['height']
     options = data['options']
     quality = data['quality']
+    fps = data['fps']
     print(data['frameId'])
 
     image_buffer = np.frombuffer(image_blob, dtype=np.uint8)
@@ -141,7 +142,7 @@ def handle_process_frame(data):
     image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     
-    result = handle_frame(image, options)
+    result, _ = handle_frame(image, options, fps)
     
     result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA
     _, compressed = cv2.imencode('.webp', result, [cv2.IMWRITE_WEBP_QUALITY, int(100 * quality)])

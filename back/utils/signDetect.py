@@ -25,7 +25,7 @@ model_names = {
 }
 
 def process(img):
-    results = model.predict(img)
+    results = model.predict(img, conf=0.1)
     for result in results:
         sign_boxes = result.boxes.xyxy  # 边界框坐标
         sign_classes = result.boxes.cls  # 类别索引
