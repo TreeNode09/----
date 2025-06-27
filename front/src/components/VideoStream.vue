@@ -50,7 +50,8 @@
         </el-checkbox-group>        
       </div>
     </div>
-    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 102px); margin-top: 10px;"></div>
+    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 102px); margin-top: 10px;"
+      @mouseover="highlightSeries" @mouseout="cancelHighlight"></div>
   </el-main>
 </el-container>
 </template>
@@ -80,8 +81,6 @@ const targetFPS = ref(10)
 const streamQuality = ref(0.5)
 const detectOptions = ref([])
 
-const junkText = ref('')
-
 let mediaStream = null
 let socket = null
 let cameraFPSCounter = 0
@@ -90,6 +89,7 @@ let cameraInterval = null  //记录帧率用的定时器
 let frameInterval = null
 let sendTimes = new Map()
 let options = [false, false, false] //检测选项
+let totalFrames = 0
 
 let cameraCanvas = null
 let cameraCanvasContext = null
@@ -97,8 +97,10 @@ let frame = null
 
 let lineChart = null
 let lineAxis = []
-let originalData = null
-const sharedOptions = {type: 'line', showSymbol: false, smooth: true, emphasis: {focus: 'series'}}
+let historyData = []
+const maxHistory = 100
+const boxSize = 5 //平滑程度
+const sharedOptions = {type: 'line', smooth: true, showSymbol: false, emphasis: {focus: 'series'}}
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
@@ -165,20 +167,6 @@ const initSocket = () => {
       }
     })
 
-    socket.on('yourJunk', (data) => {
-      const receiveTime = performance.now()
-      if (sendTimes.has(data.frameId)) {
-        const sendTime = sendTimes.get(data.frameId)
-        const latency = receiveTime - sendTime
-
-        delay.value = latency
-
-        sendTimes.delete(data.frameId)
-      }
-      frameFPSCounter++
-      junkText.value = data.data
-    })
-
     //接收处理后的帧
     socket.on('sendFrame', (data) => {
       const receiveTime = performance.now() //计算往返延迟，使用Map来存储发送时间
@@ -189,8 +177,47 @@ const initSocket = () => {
 
         sendTimes.delete(data.frameId)
       }
-      frameFPSCounter++
+      frameFPSCounter++    
       renderFrame(data.imageData) //渲染
+
+      let frameTime = Math.floor(totalFrames * 1000 / targetFPS.value)
+      let minute = Math.floor(frameTime / (60 * 1000))
+      let second = (frameTime - minute * 60 * 1000) / 1000
+      lineAxis.push(minute.toString() + (second < 10 ? ":0" : ":") + second.toFixed(2))
+      if (totalFrames > maxHistory) lineAxis.shift(1)
+ 
+      for (let key in data.analysis) {  //将当前帧的数据按key放入对应数组中
+        if (data.analysis[key] === 10000) data.analysis[key] = 0  //处理空值
+        if (key in historyData) {
+          let boxData = data.analysis[key]  //平滑数据，取最后boxSize-1个历史数据，与当前值取平均
+          if (totalFrames > boxSize) {
+            for (let i = 1; i < boxSize; i++) boxData += Number(historyData[key][historyData[key].length - i])
+            if (totalFrames > maxHistory) historyData[key].shift(1)
+          }
+          else {
+            for (let i = 0; i < totalFrames; i++) boxData += Number(historyData[key][i])
+          }
+          //摆烂了家人们，不封装了
+          if (key === 'minDistance') {
+            historyData[key].push((boxData / Math.min(totalFrames + 1, boxSize)).toFixed(2))
+          }
+          else historyData[key].push(Math.floor(boxData / Math.min(totalFrames + 1, boxSize)))
+        }
+        else{
+          if (key === 'minDistance') historyData[key] = [data.analysis[key].toFixed(2)]
+          else historyData[key] = [Math.floor(data.analysis[key])]
+        }
+      }
+      lineChart.setOption({
+        xAxis: {type: 'category', data: lineAxis, axisLabel: {interval: lineAxis.length - 2}},
+        series: [
+          {name: '车辆', data: historyData.carCount},
+          {name: '行人', data: historyData.personCount},
+          {name: '交通标志', data: historyData.signCount},
+          {name: '最近距离', data: historyData.minDistance}
+        ]
+      })
+      totalFrames++ 
     })
 
     socket.on('connect_error', (error) => {
@@ -257,6 +284,7 @@ const startProcessing = () => {
   popNotification('primary', '开始传输画面')
   updateCameraStat('working', '录制中')
   updateSocketStat('working', '传输中')
+  totalFrames = 0
 
   if (detectOptions.value.includes('road')) options[0] = true
   else options[0] = false
@@ -264,21 +292,48 @@ const startProcessing = () => {
   else options[1] = false
   if (detectOptions.value.includes('sign')) options[2] = true
   else options[2] = false
+
+  if (lineChart !== null) {lineChart.dispose()}
+  lineChart = echarts.init(document.getElementById('line-chart')) //初始化统计图
+  lineAxis = []
+  lineChart.setOption({
+    grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
+    tooltip: {trigger: 'axis'},
+    legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
+    xAxis: {type: 'category', data: lineAxis},
+    yAxis: [
+      {
+        name: '个数', type: 'value', minInterval: 1,
+        axisLine: {show: true, lineStyle: {width: 2, color: '#337ECC'}}
+      },
+      {
+        name: '距离(m)', type: 'value', minInterval: 1, position: 'right',
+        axisLine: {show: true, lineStyle: {width: 2, color: '#529B2E'}}
+      }
+    ],
+    series: [
+      Object.assign({
+        name: '车辆', data: [], color: '#337ECC'
+      }, sharedOptions),
+      Object.assign({
+        name: '行人', data: [], color: '#79BBFF'
+      }, sharedOptions),
+      Object.assign({
+        name: '交通标志', data: [], color: '#25D5D5'
+      }, sharedOptions),
+      Object.assign({
+        name: '最近距离', data: [], color: '#67C23A', yAxisIndex: 1, lineStyle: {type: 'dashed'}
+      }, sharedOptions)
+    ]
+  })
+  lineChart.on('mouseover', (params) => {
+    console.log(params)
+  })
   
   const interval = 1000 / targetFPS.value
   frameInterval = setInterval(() => {
       sendCamera()
-      //sendJunk()
   }, interval)
-}
-
-const sendJunk = () => {
-  const junk = Date.now() + '-' + Math.random().toString(36).substr(2, 9)
-  sendTimes.set(junk, performance.now())
-  socket.emit('sendJunk', {
-    frameId: junk
-  })
-  cameraFPSCounter++
 }
 
 //捕获并发送帧，MediaStream->canvas->webp->压缩->blob

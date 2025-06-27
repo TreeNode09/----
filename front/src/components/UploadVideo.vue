@@ -302,14 +302,8 @@ const getProcessedVideo = () => {
       legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
       xAxis: {type: 'category', data: lineAxis},
       yAxis: [
-        {
-          name: '个数', type: 'value', minInterval: 1,
-          axisLine: {show: true, lineStyle: {color: '#337ECC'}}
-        },
-        {
-          name: '距离(m)', type: 'value', minInterval: 1, position: 'right',
-          axisLine: {show: true, lineStyle: {color: '#529B2E'}}
-        }
+        {name: '个数', type: 'value', minInterval: 1, axisLine: {show: true, lineStyle: {color: '#337ECC'}}},
+        {name: '距离(m)', type: 'value', minInterval: 1, position: 'right', axisLine: {show: true, lineStyle: {color: '#529B2E'}}}
       ],
       series: [
         Object.assign({

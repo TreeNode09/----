@@ -10,6 +10,7 @@ import cv2
 import os
 import numpy as np
 import time
+import random
 
 app = Flask(__name__)
 CORS(app)
@@ -143,13 +144,20 @@ def handle_process_frame(data):
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     
     result, _ = handle_frame(image, options, fps)
+    analysis = {
+        'carCount': random.randint(0, 20),
+        'personCount': random.randint(0, 10),
+        'signCount': random.randint(0, 10),
+        'minDistance': random.random() * 20
+    }
     
     result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA
     _, compressed = cv2.imencode('.webp', result, [cv2.IMWRITE_WEBP_QUALITY, int(100 * quality)])
 
     resultData = {
         'frameId': data['frameId'],
-        'imageData': compressed.tobytes()
+        'imageData': compressed.tobytes(),
+        'analysis': analysis
     }
     emit('sendFrame', resultData)
 
