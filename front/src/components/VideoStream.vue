@@ -54,7 +54,8 @@
       <analysis-info name="车辆" :data="currentData.carCount" width="20%" color='#337ECC'><Van/></analysis-info>
       <analysis-info name="行人" :data="currentData.personCount" width="20%" color='#79BBFF'><User/></analysis-info>
       <analysis-info name="交通标志" :data="currentData.signCount" width="20%" color='#25D5D5'><Guide/></analysis-info>
-      <analysis-info name="最近距离" :data="currentData.minDistance" width="40%" color='#337ECC'><MapLocation/></analysis-info>
+      <analysis-info name="最近距离" :data="currentData.minDistance" width="40%"
+        :color=calcMinDistanceColor(currentData.minDistance)><MapLocation/></analysis-info>
     </div>
     <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 152px); margin-top: 10px;"
       @mouseover="highlightSeries" @mouseout="cancelHighlight"></div>
@@ -270,6 +271,14 @@ const updateCameraStat = (stat, message) => {
 const updateSocketStat = (stat, message) => {
   socketStat.value = stat
   socketMessage.value = message
+}
+
+//计算最近距离的数字颜色
+const calcMinDistanceColor = (value) => {
+  if (Number.isNaN(value)) return '#E6A23C'
+  else if (value < 25.0) return '#F56C6C'
+  else if (value > 55.0) return '#E6A23C'
+  else return '#E6A23C'
 }
 
 //启动FPS计数器

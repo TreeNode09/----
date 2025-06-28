@@ -60,14 +60,14 @@ def draw_boxes(img: cv2.Mat, boxes: list, names: list[str], infos: list):
         if index == -1:
             if names[i] == 'car':
                 if infos[i] != -1 and abs(infos[i]) < 100: text = str(infos[i]) + 'km/h'
-                color = hex_to_bgr("#54A7FF")
+                color = hex_to_bgr('#54A7FF')
             elif names[i] == 'person':
-                color = hex_to_bgr("#A6D3FF")
+                color = hex_to_bgr('#A6D3FF')
         else:
             text = names[i][index + 1:]
-            if index == 2: color = hex_to_bgr("#25D5D5")    # go-
-            elif index == 3: color = hex_to_bgr("#F56C6C")  # not-
-            elif index == 4: color = hex_to_bgr("#E6A23C")  # warn-
+            if index == 2: color = hex_to_bgr('#25D5D5')    # go-
+            elif index == 3: color = hex_to_bgr('#F56C6C')  # not-
+            elif index == 4: color = hex_to_bgr('#E6A23C')  # warn-
             elif index == 5: color = hex_to_bgr('#C45656')  # limit-
 
         x1, y1, x2, y2 = map(int, boxes[i])
