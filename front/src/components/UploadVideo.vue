@@ -143,6 +143,52 @@ const initSocket = () => {
         let second = (frameTime - minute * 60 * 1000) / 1000
         lineAxis.push(minute.toString() + (second < 10 ? ":0" : ":") + second.toFixed(2))
       }
+      if (lineChart !== null) {lineChart.dispose()}
+      lineChart = echarts.init(document.getElementById('line-chart'))
+      lineChart.setOption({
+        visualMap: [
+          {
+            show: false, type: 'continuous', seriesIndex: 3, min: 10, max: 70, calculable: true,
+            inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
+          },
+          {
+            show: false, type: 'continuous', seriesIndex: 4, min: 10, max: 70, dimension: 1,
+            inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
+          }
+        ],
+        grid: {top: '40px', bottom: '75px', left: '5%', right: '5%'},
+        tooltip: {trigger: 'axis', axisPointer: {axis: 'x'}},
+        dataZoom: {type: 'slider', show: true, xAxisIndex: [0], startValue: 0, endValue: 100},
+        legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
+        xAxis: [
+          {type: 'category', data: lineAxis},
+          {type: 'value', min: 0, max: 100, show: false}
+        ],
+        yAxis: [
+          {name: '个数', type: 'value', minInterval: 1, axisLine: {show: true, lineStyle: {color: '#337ECC'}}},
+          {name: '距离(m)', type: 'value', minInterval: 1, position: 'right', axisLine: {show: false}},
+          {name: 'axis', type: 'category', show: false, boundaryGap: false,data: Array.from(new Array(100), (v, k) => k)}
+        ],
+        series: [
+          Object.assign({
+            name: '车辆', data: smoothData(5, originalData.carCount, 0, true), color: '#337ECC'
+          }, sharedOptions),
+          Object.assign({
+            name: '行人', data: smoothData(5, originalData.personCount, 0, true), color: '#79BBFF'
+          }, sharedOptions),
+          Object.assign({
+            name: '交通标志', data: smoothData(5, originalData.signCount, 0, true), color: '#9FCEFF'
+          }, sharedOptions),
+          Object.assign({
+            name: '最近距离', data: smoothData(5, originalData.minDistance, 5, false), color: '#F56C6C',
+            yAxisIndex: 1, lineStyle: {width: 3}
+          }, sharedOptions),
+          Object.assign({
+            name: 'axis', data: new Array(100).fill(100),
+            xAxisIndex: 1, yAxisIndex: 2, animation: false, tooltip: {show: false}, lineStyle: {width: 3}
+        }, sharedOptions)
+        ]
+      })
       getProcessedVideo()
     })
 
@@ -191,23 +237,17 @@ const smoothData = (boxSize, original, offset, toInt) => {
       continue
     }
     dataBox += original[i]
-      if (i < boxSize) {
-        smoothed.push((dataBox / (i + 1)).toFixed(2))
-      }
-      else {
-        dataBox -= original[i - boxSize]
-        smoothed.push((dataBox / boxSize).toFixed(2))
-      }
+    if (i < boxSize) smoothed.push((dataBox / (i + 1)).toFixed(2))
+    else {
+      dataBox -= original[i - boxSize]
+      smoothed.push((dataBox / boxSize).toFixed(2))
+    }
   }
   if (toInt === true) {
-    for (let i = 0; i < smoothed.length; i++) {
-      smoothed[i] = Math.floor(smoothed[i])
-    }
+    for (let i = 0; i < smoothed.length; i++) smoothed[i] = Math.floor(smoothed[i])
   }
   if (offset !== 0) {
-    for (let i = 0; i < offset; i++) {
-      smoothed[i] = NaN
-    }
+    for (let i = 0; i < offset; i++) smoothed[i] = NaN
   }
   return smoothed
 }
@@ -294,31 +334,16 @@ const getProcessedVideo = () => {
   .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
-    if (lineChart !== null) {lineChart.dispose()}
-    lineChart = echarts.init(document.getElementById('line-chart'))
+
+    let minDistanceAxisMax = lineChart.getModel().getComponent('yAxis', 1).axis.scale._extent[1]
     lineChart.setOption({
-      grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
-      tooltip: {trigger: 'axis'},
-      legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
-      xAxis: {type: 'category', data: lineAxis},
       yAxis: [
-        {name: '个数', type: 'value', minInterval: 1, axisLine: {show: true, lineStyle: {color: '#337ECC'}}},
-        {name: '距离(m)', type: 'value', minInterval: 1, position: 'right', axisLine: {show: true, lineStyle: {color: '#529B2E'}}}
+        {name: 'axis', data: Array.from(new Array(minDistanceAxisMax), (v, k) => k)}
       ],
       series: [
-        Object.assign({
-          name: '车辆', data: smoothData(5, originalData.carCount, 0, true), color: '#337ECC'
-        }, sharedOptions),
-        Object.assign({
-          name: '行人', data: smoothData(5, originalData.personCount, 0, true), color: '#79BBFF'
-        }, sharedOptions),
-        Object.assign({
-          name: '交通标志', data: smoothData(5, originalData.signCount, 0, true), color: '#9FCEFF'
-        }, sharedOptions),
-        Object.assign({
-          name: '最近距离', data: smoothData(5, originalData.minDistance, 5, false), color: '#67C23A',
-          yAxisIndex: 1, lineStyle: {type: 'dashed'}
-        }, sharedOptions)
+        {
+          name: 'axis', data: new Array(minDistanceAxisMax).fill(100)
+        }
       ]
     })
     uploadStat.value = '完成'
@@ -326,6 +351,8 @@ const getProcessedVideo = () => {
     fileList.value = []
     firstVideo.value = false
   }).catch(error => alert(error))
+
+
 }
 
 const setVideoTime = (events) => {

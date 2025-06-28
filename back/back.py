@@ -148,7 +148,7 @@ def handle_process_frame(data):
         'carCount': random.randint(0, 20),
         'personCount': random.randint(0, 10),
         'signCount': random.randint(0, 10),
-        'minDistance': random.random() * 20
+        'minDistance': random.random() * 100
     }
     
     result = cv2.cvtColor(result, cv2.COLOR_RGB2BGRA)  # 转换回RGBA

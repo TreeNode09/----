@@ -50,7 +50,13 @@
         </el-checkbox-group>        
       </div>
     </div>
-    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 102px); margin-top: 10px;"
+    <div style="height: 60px; margin: 15px 0 5px 0; border: 1px solid #DCDFE6; border-radius: 5px;">
+      <analysis-info name="车辆" :data="currentData.carCount" width="20%" color='#337ECC'><Van/></analysis-info>
+      <analysis-info name="行人" :data="currentData.personCount" width="20%" color='#79BBFF'><User/></analysis-info>
+      <analysis-info name="交通标志" :data="currentData.signCount" width="20%" color='#25D5D5'><Guide/></analysis-info>
+      <analysis-info name="最近距离" :data="currentData.minDistance" width="40%" color='#337ECC'><MapLocation/></analysis-info>
+    </div>
+    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 152px); margin-top: 10px;"
       @mouseover="highlightSeries" @mouseout="cancelHighlight"></div>
   </el-main>
 </el-container>
@@ -60,11 +66,12 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
-import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold, Clock, PictureFilled } from '@element-plus/icons-vue'
+import { ArrowDownBold, ArrowUpBold, CameraFilled, Clock, Guide, MapLocation, PictureFilled, Timer, Van, UploadFilled, User} from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 
 import InfoIcon from './InfoIcon.vue'
 import ConnectInfo from './ConnectInfo.vue'
+import AnalysisInfo from './AnalysisInfo.vue'
 
 const camera = ref(null)
 const isAvailable = ref(false)  //是否允许传输
@@ -76,6 +83,7 @@ const cameraStat = ref('off')
 const socketStat = ref('off')
 const cameraMessage = ref('未连接')
 const socketMessage = ref('未连接')
+const currentData = ref({'carCount': '--', 'personCount': '--', 'signCount': '--', 'minDistance': '--'})
 
 const targetFPS = ref(10)
 const streamQuality = ref(0.5)
@@ -97,10 +105,11 @@ let frame = null
 
 let lineChart = null
 let lineAxis = []
-let historyData = []
+let historyData = {}
 const maxHistory = 100
 const boxSize = 5 //平滑程度
 const sharedOptions = {type: 'line', smooth: true, showSymbol: false, emphasis: {focus: 'series'}}
+const blankAxisArray = Array.from(new Array(100), (v, k) => k)
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
@@ -187,38 +196,40 @@ const initSocket = () => {
       if (totalFrames > maxHistory) lineAxis.shift(1)
  
       for (let key in data.analysis) {  //将当前帧的数据按key放入对应数组中
-        if (data.analysis[key] === 10000) data.analysis[key] = 0  //处理空值
-        if (key in historyData) {
-          let boxData = data.analysis[key]  //平滑数据，取最后boxSize-1个历史数据，与当前值取平均
-          if (totalFrames > boxSize) {
-            for (let i = 1; i < boxSize; i++) boxData += Number(historyData[key][historyData[key].length - i])
+        let result = 0
+        if (data.analysis[key] > 100) result = NaN
+        else {
+            let boxData = data.analysis[key]  //平滑数据，取最后boxSize-1个历史数据，与当前值取平均
+            let len = key in historyData ? historyData[key].length : 0
+            for (let i = len - 1; i > 0 && i > len - boxSize; i--) {
+              if (Number.isNaN(Number(historyData[key][i])) === true) continue
+              else boxData += Number(historyData[key][i])
+            }
             if (totalFrames > maxHistory) historyData[key].shift(1)
-          }
-          else {
-            for (let i = 0; i < totalFrames; i++) boxData += Number(historyData[key][i])
-          }
-          //摆烂了家人们，不封装了
-          if (key === 'minDistance') {
-            historyData[key].push((boxData / Math.min(totalFrames + 1, boxSize)).toFixed(2))
-          }
-          else historyData[key].push(Math.floor(boxData / Math.min(totalFrames + 1, boxSize)))
+            //摆烂了家人们，不封装了
+            if (key === 'minDistance') result = (boxData / Math.min(totalFrames + 1, boxSize)).toFixed(2)
+            else result = Math.floor(boxData / Math.min(totalFrames + 1, boxSize))     
         }
-        else{
-          if (key === 'minDistance') historyData[key] = [data.analysis[key].toFixed(2)]
-          else historyData[key] = [Math.floor(data.analysis[key])]
-        }
+        if (key in historyData) historyData[key].push(result)
+        else historyData[key] = [result]
+
+        currentData.value[key] = result
       }
+      let minDistanceAxisMax = lineChart.getModel().getComponent('yAxis', 1).axis.scale._extent[1]
       lineChart.setOption({
         xAxis: {type: 'category', data: lineAxis, axisLabel: {interval: lineAxis.length - 2}},
+        yAxis: {index: 2, data: blankAxisArray.slice(0, minDistanceAxisMax)},
         series: [
           {name: '车辆', data: historyData.carCount},
           {name: '行人', data: historyData.personCount},
           {name: '交通标志', data: historyData.signCount},
-          {name: '最近距离', data: historyData.minDistance}
+          {name: '最近距离', data: historyData.minDistance},
+          {name: 'axis', data: new Array(minDistanceAxisMax).fill(100)}
         ]
       })
       totalFrames++ 
     })
+    
 
     socket.on('connect_error', (error) => {
       isAvailable.value = false
@@ -296,20 +307,32 @@ const startProcessing = () => {
   if (lineChart !== null) {lineChart.dispose()}
   lineChart = echarts.init(document.getElementById('line-chart')) //初始化统计图
   lineAxis = []
+  historyData = {}
   lineChart.setOption({
-    grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
-    tooltip: {trigger: 'axis'},
-    legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
-    xAxis: {type: 'category', data: lineAxis},
-    yAxis: [
+    visualMap: [
       {
-        name: '个数', type: 'value', minInterval: 1,
-        axisLine: {show: true, lineStyle: {width: 2, color: '#337ECC'}}
+        show: false, type: 'continuous', seriesIndex: 3, min: 10, max: 70,
+        inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
       },
       {
-        name: '距离(m)', type: 'value', minInterval: 1, position: 'right',
-        axisLine: {show: true, lineStyle: {width: 2, color: '#529B2E'}}
+        show: false, type: 'continuous', seriesIndex: 4, min: 10, max: 70, dimension: 1,
+        inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
       }
+    ],
+    grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
+    tooltip: {trigger: 'axis', axisPointer: {axis: 'x'}},
+    legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
+    xAxis: [
+      {type: 'category', data: lineAxis},
+      {type: 'value', min: 0, max: 100, show: false}
+    ],
+    yAxis: [
+      {
+        name: '个数', type: 'value', minInterval: 1, animation: false,
+        axisLine: {show: true, lineStyle: {width: 2, color: '#337ECC'}}
+      },
+      {name: '距离(m)', type: 'value', minInterval: 1, position: 'right', animation: false, axisLine: {show: false}},
+      {type: 'category', show: false, boundaryGap: false, data: []}
     ],
     series: [
       Object.assign({
@@ -322,7 +345,10 @@ const startProcessing = () => {
         name: '交通标志', data: [], color: '#25D5D5'
       }, sharedOptions),
       Object.assign({
-        name: '最近距离', data: [], color: '#67C23A', yAxisIndex: 1, lineStyle: {type: 'dashed'}
+        name: '最近距离', data: [], color: '#F56C6C', yAxisIndex: 1, lineStyle: {width: 3}
+      }, sharedOptions),
+      Object.assign({
+        name: 'axis', data: [], xAxisIndex: 1, yAxisIndex: 2, animation: false, tooltip: {show: false}, lineStyle: {width: 3}
       }, sharedOptions)
     ]
   })
