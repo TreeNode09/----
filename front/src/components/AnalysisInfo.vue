@@ -1,5 +1,5 @@
 <template>
-<div style="display: inline-block; vertical-align: top;" :style="{'width': props.width}">
+<div style="display: inline-block; vertical-align: text-top;" :style="{'width': props.width}">
   <div style="display: inline-block; margin-bottom: 15px; vertical-align: middle;">
     <info-icon><slot></slot></info-icon> {{ props.name }}&nbsp;
   </div>

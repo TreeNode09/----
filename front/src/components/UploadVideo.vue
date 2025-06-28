@@ -218,6 +218,7 @@ const getTime = () => {
 const popNotification = (type, message) => {
   ElNotification({
     type: type,
+    position: 'bottom-right',
     dangerouslyUseHTMLString: true,
     message: '<div><strong>' + message + '</strong></div>' + getTime()
   })
