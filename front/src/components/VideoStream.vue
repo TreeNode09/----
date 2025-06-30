@@ -230,7 +230,6 @@ const initSocket = () => {
       })
       totalFrames++ 
     })
-    
 
     socket.on('connect_error', (error) => {
       isAvailable.value = false
@@ -274,7 +273,7 @@ const updateSocketStat = (stat, message) => {
   socketMessage.value = message
 }
 
-//计算最近距离的数字颜色
+//计算数字颜色
 const calcMinDistanceColor = (value) => {
   if (Number.isNaN(value)) return '#E6A23C'
   else if (value < 25.0) return '#F56C6C'
@@ -331,7 +330,12 @@ const startProcessing = () => {
     ],
     grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
     tooltip: {trigger: 'axis', axisPointer: {axis: 'x'}},
-    legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
+    legend: {data: ['车辆', '行人', '交通标志',
+      {
+        name: '最近距离', itemStyle: {color: {type: 'linear',x: 0, y: 0, x2: 1.25, y2: 1.25,
+        colorStops: [{offset: 1, color: '#F56C6C'}, {offset: 0.6, color: '#E6A23C'}, {offset: 0, color: '#67C23A'}]}}
+      }
+    ], icon: 'roundRect'},
     xAxis: [
       {type: 'category', data: lineAxis},
       {type: 'value', min: 0, max: 100, show: false}
@@ -398,7 +402,7 @@ const sendCamera = () => {
         fps: targetFPS.value
       })
     }
-    reader.readAsArrayBuffer(blob);
+    reader.readAsArrayBuffer(blob)
   }, 'image/webp', 1)
 
   cameraFPSCounter++

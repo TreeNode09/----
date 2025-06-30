@@ -159,7 +159,12 @@ const initSocket = () => {
         grid: {top: '40px', bottom: '75px', left: '5%', right: '5%'},
         tooltip: {trigger: 'axis', axisPointer: {axis: 'x'}},
         dataZoom: {type: 'slider', show: true, xAxisIndex: [0], startValue: 0, endValue: 100},
-        legend: {data: ['车辆', '行人', '交通标志', '最近距离']},
+        legend: {data: ['车辆', '行人', '交通标志',
+          {
+            name: '最近距离', itemStyle: {color: {type: 'linear',x: 0, y: 0, x2: 1.25, y2: 1.25,
+            colorStops: [{offset: 1, color: '#F56C6C'}, {offset: 0.6, color: '#E6A23C'}, {offset: 0, color: '#67C23A'}]}}
+          }
+        ], icon: 'roundRect'},
         xAxis: [
           {type: 'category', data: lineAxis},
           {type: 'value', min: 0, max: 100, show: false}
@@ -335,25 +340,17 @@ const getProcessedVideo = () => {
   .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
-
+    //绘制之后才能获取y轴最大值，因此放在此处执行
     let minDistanceAxisMax = lineChart.getModel().getComponent('yAxis', 1).axis.scale._extent[1]
     lineChart.setOption({
-      yAxis: [
-        {name: 'axis', data: Array.from(new Array(minDistanceAxisMax), (v, k) => k)}
-      ],
-      series: [
-        {
-          name: 'axis', data: new Array(minDistanceAxisMax).fill(100)
-        }
-      ]
+      yAxis: [{name: 'axis', data: Array.from(new Array(minDistanceAxisMax), (v, k) => k)}],
+      series: [{name: 'axis', data: new Array(minDistanceAxisMax).fill(100)}]
     })
     uploadStat.value = '完成'
     updateSocketStat('ready', '已就绪')
     fileList.value = []
     firstVideo.value = false
   }).catch(error => alert(error))
-
-
 }
 
 const setVideoTime = (events) => {
