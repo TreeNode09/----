@@ -4,6 +4,21 @@ import cv2
 
 model = YOLO('图像识别/' + 'back/models/sign.pt')
 
+
+# classes = ['ph5', 'p26', 'pl40', 'pl60', 'pn', 'i5', 'p11', 'pne', 'pcl', 'pl50', 'pcr', 'w55', 'pl5', 'ph4.5', 
+#             'pl80', 'pg', 'w28', 'w30', 'pl30', 'p19', 'i4l', 'i2r', 'pw3.2', 'pm20', 'pbp', 'p5', 'pl120', 'w24', 
+#             'p13', 'w57', 'ip', 'p10', 'il100', 'il60', 'il90', 'pb', 'pl110', 'w59', 'il80', 'pl100', 'ph4', 'pmb', 
+#             'p14', 'pl15', 'i4', 'p16', 'p3', 'pl70', 'pdd', 'pr70', 'w13', 'w32', 'i2', 'pr40', 'pm30', 'w63', 
+#             'p12', 'p17', 'p18', 'im', 'pl20', 'p6', 'pw3.5', 'p27', 'pcd', 'i14', 'p2', 'p1', 'i12', 'wc', 'i10', 
+#             'p23', 'w58', 'p25', 'ph3', 'pl90', 'pbm', 'w5', 'pl10', 'pss', 'pm55', 'phclr', 'i13', 'i1', 'ph2.2', 
+#             'w47', 'pr60', 'w38', 'il50', 'w16', 'w22', 'p20', 'pn-2', 'iz', 'p9', 'p1n', 'ph4.3', 'ps', 'pm8', 'w3', 
+#             'w21', 'p29', 'w18', 'pa10', 'pa14', 'pa13', 'il70', 'ph2', 'pr100', 'pr80', 'pm5', 'w45', 'pmr', 'w12', 
+#             'ph2.9', 'pr50', 'il110', 'w42', 'p8', 'pt', 'pm35', 'pa12', 'w41', 'p28', 'ph3.5', 'pw4', 'pm2.5', 'w37', 
+#             'ph5.3', 'ph5.5', 'ph2.8', 'i15', 'w10', 'pmblr', 'p21', 'ph4.2', 'pm15', 'pr30', 'pctl', 'w66', 'w46', 
+#             'ph1.8', 'pm50', 'w20', 'w15', 'pl25', 'pm40', 'pa18', 'pa6', 'pw4.5', 'p15', 'ph2.5', 'p4', 'w35', 'pm10', 
+#             'pr20', 'i3', 'ph3.2', 'pw3', 'ph2.4', 'ph4.8', 'pw4.2', 'phcs', 'ph2.1', 'w34', 'pc', 'pr45', 'pm2', 'pl35', 
+#             'pcs', 'pw2.5', 'i11', 'w60', 'pr10', 'pa8', 'p24', 'w8', 'w14', 'pm13', 'pnlc', 'pclr', 'w56', 'w43', 'ph3.8']
+
 model_names = {
     0: 'limit-5kph', 1: 'limit-15kph', 2: 'limit-30kph',  3: 'limit-40kph', 4: 'limit-50kph',
     5: 'limit-60kph', 6: 'limit-70kph', 7: 'limit-80kph', 18: 'limit-40kph-dated', 19: 'limit-50kph-dated',
