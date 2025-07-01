@@ -8,7 +8,7 @@ import os
 import math
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-import laneUtils.my_interp
+import laneUtils.my_interp as my_interp
 
 class LaneDataset(Dataset):
     def __init__(self, data_root, list_path, mode='train', 

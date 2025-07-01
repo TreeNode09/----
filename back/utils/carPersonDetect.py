@@ -14,7 +14,7 @@ def process(img, fps):
         cp_boxes = result.boxes.xyxy  # 边界框坐标
         cp_classes = result.boxes.cls  # 类别索引     
         cp_names = [model.names[int(cls)] for cls in cp_classes]
-        speeds, distances = [], []
+        speeds, distances = [], [10000]
         for box, name in zip(cp_boxes, cp_names):
             if name == "car":
                 x1, y1, x2, y2 = map(float, box)    #车矩形框的左上角和右下角
