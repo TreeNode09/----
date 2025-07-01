@@ -67,8 +67,9 @@ def draw_boxes(img: cv2.Mat, boxes: list, names: list[str], infos: list):
             text = names[i][index + 1:]
             if index == 2: color = hex_to_bgr('#25D5D5')    # go-
             elif index == 3: color = hex_to_bgr('#F56C6C')  # not-
-            elif index == 4: color = hex_to_bgr('#E6A23C')  # warn-
+            elif index == 7: color = hex_to_bgr('#E6A23C')  # warning-
             elif index == 5: color = hex_to_bgr('#C45656')  # limit-
+            else: return img
 
         x1, y1, x2, y2 = map(int, boxes[i])
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
