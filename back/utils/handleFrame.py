@@ -66,9 +66,9 @@ def draw_boxes(img: cv2.Mat, boxes: list, names: list[str], infos: list):
         else:
             text = names[i][index + 1:]
             if index == 2: color = hex_to_bgr('#25D5D5')    # go-
-            elif index == 3: color = hex_to_bgr('#F56C6C')  # not-
+            elif index == 3: color = hex_to_bgr("#DE1A1A")  # not-
             elif index == 7: color = hex_to_bgr('#E6A23C')  # warning-
-            elif index == 5: color = hex_to_bgr('#C45656')  # limit-
+            elif index == 5: color = hex_to_bgr("#BB3213")  # limit-
             else: return img
 
         x1, y1, x2, y2 = map(int, boxes[i])

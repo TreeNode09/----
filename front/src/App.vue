@@ -110,6 +110,7 @@ div .el-button.is-text:not(.is-disabled):hover
 .is-disabled.is-checked.selected .el-checkbox-button__inner
 {
   background-color: var(--el-color-primary-light-7);
+  color: #FFF;
 }
 
 .el-upload
