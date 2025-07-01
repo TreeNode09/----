@@ -91,7 +91,7 @@ let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，�
 let lineChart = null
 let lineAxis = []
 let originalData = null
-let lineData = null
+const sharedOptions = {type: 'line', showSymbol: false, smooth: true, emphasis: {focus: 'series'}}
 
 const videoURL = ref('')
 
@@ -135,10 +135,7 @@ const initSocket = () => {
     socket.on('finishProcess', (data) => {
       videoProgress.value = 1.0
       if (data.totalFrame == -1) return
-
-      originalData = data.analysis
-      lineData = smoothData(5)
-      
+      originalData = data.analysis   
       lineAxis = []
       for (let i = 0; i < data.totalFrame; i++) { //得到折线图的时间轴
         let frameTime = Math.floor(i * 1000 / targetFPS.value)
@@ -146,6 +143,57 @@ const initSocket = () => {
         let second = (frameTime - minute * 60 * 1000) / 1000
         lineAxis.push(minute.toString() + (second < 10 ? ":0" : ":") + second.toFixed(2))
       }
+      if (lineChart !== null) {lineChart.dispose()}
+      lineChart = echarts.init(document.getElementById('line-chart'))
+      lineChart.setOption({
+        visualMap: [
+          {
+            show: false, type: 'continuous', seriesIndex: 3, min: 10, max: 70, calculable: true,
+            inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
+          },
+          {
+            show: false, type: 'continuous', seriesIndex: 4, min: 10, max: 70, dimension: 1,
+            inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
+          }
+        ],
+        grid: {top: '40px', bottom: '75px', left: '5%', right: '5%'},
+        tooltip: {trigger: 'axis', axisPointer: {axis: 'x'}},
+        dataZoom: {type: 'slider', show: true, xAxisIndex: [0], startValue: 0, endValue: 100},
+        legend: {data: ['车辆', '行人', '交通标志',
+          {
+            name: '最近距离', itemStyle: {color: {type: 'linear',x: 0, y: 0, x2: 1.25, y2: 1.25,
+            colorStops: [{offset: 1, color: '#F56C6C'}, {offset: 0.6, color: '#E6A23C'}, {offset: 0, color: '#67C23A'}]}}
+          }
+        ], icon: 'roundRect'},
+        xAxis: [
+          {type: 'category', data: lineAxis},
+          {type: 'value', min: 0, max: 100, show: false}
+        ],
+        yAxis: [
+          {name: '个数', type: 'value', minInterval: 1, axisLine: {show: true, lineStyle: {color: '#337ECC'}}},
+          {name: '距离(m)', type: 'value', minInterval: 1, position: 'right', axisLine: {show: false}},
+          {name: 'axis', type: 'category', show: false, boundaryGap: false,data: Array.from(new Array(100), (v, k) => k)}
+        ],
+        series: [
+          Object.assign({
+            name: '车辆', data: smoothData(5, originalData.carCount, 0, true), color: '#337ECC'
+          }, sharedOptions),
+          Object.assign({
+            name: '行人', data: smoothData(5, originalData.personCount, 0, true), color: '#79BBFF'
+          }, sharedOptions),
+          Object.assign({
+            name: '交通标志', data: smoothData(5, originalData.signCount, 0, true), color: '#9FCEFF'
+          }, sharedOptions),
+          Object.assign({
+            name: '最近距离', data: smoothData(5, originalData.minDistance, 5, false), color: '#F56C6C',
+            yAxisIndex: 1, lineStyle: {width: 3}
+          }, sharedOptions),
+          Object.assign({
+            name: 'axis', data: new Array(100).fill(100),
+            xAxisIndex: 1, yAxisIndex: 2, animation: false, tooltip: {show: false}, lineStyle: {width: 3}
+        }, sharedOptions)
+        ]
+      })
       getProcessedVideo()
     })
 
@@ -175,6 +223,7 @@ const getTime = () => {
 const popNotification = (type, message) => {
   ElNotification({
     type: type,
+    position: 'bottom-right',
     dangerouslyUseHTMLString: true,
     message: '<div><strong>' + message + '</strong></div>' + getTime()
   })
@@ -185,21 +234,26 @@ const updateSocketStat = (stat, message) => {
   socketMessage.value = message
 }
 
-const smoothData = (boxSize) => {
-  let smoothed = Object.assign({}, originalData)
-  for (let key in originalData) {
-    smoothed[key] = []
-    let dataBox = 0
-    for (let i = 0; i < originalData[key].length; i++) {
-      dataBox += originalData[key][i]
-      if (i < boxSize) {
-        smoothed[key].push(Math.floor(dataBox / (i + 1)))
-      }
-      else {
-        dataBox -= originalData[key][i - boxSize]
-        smoothed[key].push(Math.floor(dataBox / boxSize))
-      }
+const smoothData = (boxSize, original, offset, toInt) => {
+  let smoothed = []
+  let dataBox = 0
+  for (let i = 0; i < original.length; i++) {
+    if (original[i] === 10000) {
+      smoothed.push(NaN)
+      continue
     }
+    dataBox += original[i]
+    if (i < boxSize) smoothed.push((dataBox / (i + 1)).toFixed(2))
+    else {
+      dataBox -= original[i - boxSize]
+      smoothed.push((dataBox / boxSize).toFixed(2))
+    }
+  }
+  if (toInt === true) {
+    for (let i = 0; i < smoothed.length; i++) smoothed[i] = Math.floor(smoothed[i])
+  }
+  if (offset !== 0) {
+    for (let i = 0; i < offset; i++) smoothed[i] = NaN
   }
   return smoothed
 }
@@ -252,12 +306,9 @@ const checkFormat = (file, files) => {
 
 const getOriginalFPS = (file) => {
   return new Promise((resolve, reject) => {
-    window.MediaInfo()//1
-    .then((media) => {
-
+    window.MediaInfo().then((media) => {
       media.analyzeData(
         () => {return file.size},
-
         (chunkSize, offset) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader()
@@ -267,15 +318,10 @@ const getOriginalFPS = (file) => {
             }
             reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
           })
-        }
-      )
-      .then((result) => {
+        }).then((result) => {
         resolve(result.media.track[0].FrameRate)
-      })
-      .catch((error) => reject(error))
-
-    })
-    .catch((error) => reject(error))
+      }).catch((error) => reject(error))
+    }).catch((error) => reject(error))
   })
 }
 
@@ -294,18 +340,11 @@ const getProcessedVideo = () => {
   .then(response => {
     videoURL.value = URL.createObjectURL(response.data)
     videoPlayer.value.src = videoURL.value
-    if (lineChart !== null) {lineChart.dispose()}
-    lineChart = echarts.init(document.getElementById('line-chart'))
+    //绘制之后才能获取y轴最大值，因此放在此处执行
+    let minDistanceAxisMax = lineChart.getModel().getComponent('yAxis', 1).axis.scale._extent[1]
     lineChart.setOption({
-      grid: {top: '25px', bottom: '25px', left: '3%', right: '3%'},
-      tooltip: {trigger: 'axis'},
-      legend: {data: ['车辆行人', '交通标志']},
-      xAxis: {type: 'category', data: lineAxis},
-      yAxis: {type: 'value', minInterval: 1},
-      series: [
-        {name: '车辆行人', data: lineData.cpCount, type: 'line', showSymbol: false, smooth: true},
-        {name: '交通标志', data: lineData.signCount, type: 'line', showSymbol: false, smooth: true}
-      ]
+      yAxis: [{name: 'axis', data: Array.from(new Array(minDistanceAxisMax), (v, k) => k)}],
+      series: [{name: 'axis', data: new Array(minDistanceAxisMax).fill(100)}]
     })
     uploadStat.value = '完成'
     updateSocketStat('ready', '已就绪')

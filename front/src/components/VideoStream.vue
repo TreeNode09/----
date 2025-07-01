@@ -50,6 +50,15 @@
         </el-checkbox-group>        
       </div>
     </div>
+    <div style="height: 60px; margin: 15px 0 5px 0; border: 1px solid #DCDFE6; border-radius: 5px;">
+      <analysis-info name="车辆" :data="currentData.carCount" width="20%" color='#337ECC'><Van/></analysis-info>
+      <analysis-info name="行人" :data="currentData.personCount" width="20%" color='#79BBFF'><User/></analysis-info>
+      <analysis-info name="交通标志" :data="currentData.signCount" width="20%" color='#25D5D5'><Guide/></analysis-info>
+      <analysis-info name="最近距离" :data="currentData.minDistance" width="40%"
+        :color=calcMinDistanceColor(currentData.minDistance)><MapLocation/></analysis-info>
+    </div>
+    <div id="line-chart" style="height: calc(calc(calc(50vw - 20px) * 0.75) - 152px); margin-top: 10px;"
+      @mouseover="highlightSeries" @mouseout="cancelHighlight"></div>
   </el-main>
 </el-container>
 </template>
@@ -58,10 +67,12 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { io } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
-import { CameraFilled, UploadFilled, Timer, ArrowUpBold, ArrowDownBold, Clock, PictureFilled } from '@element-plus/icons-vue'
+import { ArrowDownBold, ArrowUpBold, CameraFilled, Clock, Guide, MapLocation, PictureFilled, Timer, Van, UploadFilled, User} from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 
 import InfoIcon from './InfoIcon.vue'
 import ConnectInfo from './ConnectInfo.vue'
+import AnalysisInfo from './AnalysisInfo.vue'
 
 const camera = ref(null)
 const isAvailable = ref(false)  //是否允许传输
@@ -73,12 +84,11 @@ const cameraStat = ref('off')
 const socketStat = ref('off')
 const cameraMessage = ref('未连接')
 const socketMessage = ref('未连接')
+const currentData = ref({'carCount': '--', 'personCount': '--', 'signCount': '--', 'minDistance': '--'})
 
 const targetFPS = ref(10)
 const streamQuality = ref(0.5)
 const detectOptions = ref([])
-
-const junkText = ref('')
 
 let mediaStream = null
 let socket = null
@@ -88,10 +98,19 @@ let cameraInterval = null  //记录帧率用的定时器
 let frameInterval = null
 let sendTimes = new Map()
 let options = [false, false, false] //检测选项
+let totalFrames = 0
 
 let cameraCanvas = null
 let cameraCanvasContext = null
 let frame = null
+
+let lineChart = null
+let lineAxis = []
+let historyData = {}
+const maxHistory = 100
+const boxSize = 5 //平滑程度
+const sharedOptions = {type: 'line', smooth: true, showSymbol: false, emphasis: {focus: 'series'}}
+const blankAxisArray = Array.from(new Array(100), (v, k) => k)
 
 const cameraInfo = { width: 600, height: 400, frameRate: 30 } //捕获摄像机的参数
 const frameInfo = {width: 600, height: 400} //传给后端的帧的参数
@@ -158,20 +177,6 @@ const initSocket = () => {
       }
     })
 
-    socket.on('yourJunk', (data) => {
-      const receiveTime = performance.now()
-      if (sendTimes.has(data.frameId)) {
-        const sendTime = sendTimes.get(data.frameId)
-        const latency = receiveTime - sendTime
-
-        delay.value = latency
-
-        sendTimes.delete(data.frameId)
-      }
-      frameFPSCounter++
-      junkText.value = data.data
-    })
-
     //接收处理后的帧
     socket.on('sendFrame', (data) => {
       const receiveTime = performance.now() //计算往返延迟，使用Map来存储发送时间
@@ -182,8 +187,48 @@ const initSocket = () => {
 
         sendTimes.delete(data.frameId)
       }
-      frameFPSCounter++
+      frameFPSCounter++    
       renderFrame(data.imageData) //渲染
+
+      let frameTime = Math.floor(totalFrames * 1000 / targetFPS.value)
+      let minute = Math.floor(frameTime / (60 * 1000))
+      let second = (frameTime - minute * 60 * 1000) / 1000
+      lineAxis.push(minute.toString() + (second < 10 ? ":0" : ":") + second.toFixed(2))
+      if (totalFrames > maxHistory) lineAxis.shift(1)
+ 
+      for (let key in data.analysis) {  //将当前帧的数据按key放入对应数组中
+        let result = 0
+        if (data.analysis[key] > 100) result = NaN
+        else {
+            let boxData = data.analysis[key]  //平滑数据，取最后boxSize-1个历史数据，与当前值取平均
+            let len = key in historyData ? historyData[key].length : 0
+            for (let i = len - 1; i > 0 && i > len - boxSize; i--) {
+              if (Number.isNaN(Number(historyData[key][i])) === true) continue
+              else boxData += Number(historyData[key][i])
+            }
+            if (totalFrames > maxHistory) historyData[key].shift(1)
+            //摆烂了家人们，不封装了
+            if (key === 'minDistance') result = (boxData / Math.min(totalFrames + 1, boxSize)).toFixed(2)
+            else result = Math.floor(boxData / Math.min(totalFrames + 1, boxSize))     
+        }
+        if (key in historyData) historyData[key].push(result)
+        else historyData[key] = [result]
+
+        currentData.value[key] = result
+      }
+      let minDistanceAxisMax = lineChart.getModel().getComponent('yAxis', 1).axis.scale._extent[1]
+      lineChart.setOption({
+        xAxis: {type: 'category', data: lineAxis, axisLabel: {interval: lineAxis.length - 2}},
+        yAxis: {index: 2, data: blankAxisArray.slice(0, minDistanceAxisMax)},
+        series: [
+          {name: '车辆', data: historyData.carCount},
+          {name: '行人', data: historyData.personCount},
+          {name: '交通标志', data: historyData.signCount},
+          {name: '最近距离', data: historyData.minDistance},
+          {name: 'axis', data: new Array(minDistanceAxisMax).fill(100)}
+        ]
+      })
+      totalFrames++ 
     })
 
     socket.on('connect_error', (error) => {
@@ -210,6 +255,7 @@ const getTime = () => {
 const popNotification = (type, message) => {
   ElNotification({
     type: type,
+    position: 'bottom-right',
     dangerouslyUseHTMLString: true,
     message: '<div><strong>' + message + '</strong></div>' + getTime()
   })
@@ -225,6 +271,14 @@ const updateCameraStat = (stat, message) => {
 const updateSocketStat = (stat, message) => {
   socketStat.value = stat
   socketMessage.value = message
+}
+
+//计算数字颜色
+const calcMinDistanceColor = (value) => {
+  if (Number.isNaN(value)) return '#E6A23C'
+  else if (value < 25.0) return '#F56C6C'
+  else if (value > 55.0) return '#E6A23C'
+  else return '#E6A23C'
 }
 
 //启动FPS计数器
@@ -250,6 +304,7 @@ const startProcessing = () => {
   popNotification('primary', '开始传输画面')
   updateCameraStat('working', '录制中')
   updateSocketStat('working', '传输中')
+  totalFrames = 0
 
   if (detectOptions.value.includes('road')) options[0] = true
   else options[0] = false
@@ -257,21 +312,68 @@ const startProcessing = () => {
   else options[1] = false
   if (detectOptions.value.includes('sign')) options[2] = true
   else options[2] = false
+
+  if (lineChart !== null) {lineChart.dispose()}
+  lineChart = echarts.init(document.getElementById('line-chart')) //初始化统计图
+  lineAxis = []
+  historyData = {}
+  lineChart.setOption({
+    visualMap: [
+      {
+        show: false, type: 'continuous', seriesIndex: 3, min: 10, max: 70,
+        inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
+      },
+      {
+        show: false, type: 'continuous', seriesIndex: 4, min: 10, max: 70, dimension: 1,
+        inRange: {color: ['#F56C6C', '#E6A23C', '#67C23A']}
+      }
+    ],
+    grid: {top: '40px', bottom: '25px', left: '5%', right: '5%'},
+    tooltip: {trigger: 'axis', axisPointer: {axis: 'x'}},
+    legend: {data: ['车辆', '行人', '交通标志',
+      {
+        name: '最近距离', itemStyle: {color: {type: 'linear',x: 0, y: 0, x2: 1.25, y2: 1.25,
+        colorStops: [{offset: 1, color: '#F56C6C'}, {offset: 0.6, color: '#E6A23C'}, {offset: 0, color: '#67C23A'}]}}
+      }
+    ], icon: 'roundRect'},
+    xAxis: [
+      {type: 'category', data: lineAxis},
+      {type: 'value', min: 0, max: 100, show: false}
+    ],
+    yAxis: [
+      {
+        name: '个数', type: 'value', minInterval: 1, animation: false,
+        axisLine: {show: true, lineStyle: {width: 2, color: '#337ECC'}}
+      },
+      {name: '距离(m)', type: 'value', minInterval: 1, position: 'right', animation: false, axisLine: {show: false}},
+      {type: 'category', show: false, boundaryGap: false, data: []}
+    ],
+    series: [
+      Object.assign({
+        name: '车辆', data: [], color: '#337ECC'
+      }, sharedOptions),
+      Object.assign({
+        name: '行人', data: [], color: '#79BBFF'
+      }, sharedOptions),
+      Object.assign({
+        name: '交通标志', data: [], color: '#25D5D5'
+      }, sharedOptions),
+      Object.assign({
+        name: '最近距离', data: [], color: '#F56C6C', yAxisIndex: 1, lineStyle: {width: 3}
+      }, sharedOptions),
+      Object.assign({
+        name: 'axis', data: [], xAxisIndex: 1, yAxisIndex: 2, animation: false, tooltip: {show: false}, lineStyle: {width: 3}
+      }, sharedOptions)
+    ]
+  })
+  lineChart.on('mouseover', (params) => {
+    console.log(params)
+  })
   
   const interval = 1000 / targetFPS.value
   frameInterval = setInterval(() => {
       sendCamera()
-      //sendJunk()
   }, interval)
-}
-
-const sendJunk = () => {
-  const junk = Date.now() + '-' + Math.random().toString(36).substr(2, 9)
-  sendTimes.set(junk, performance.now())
-  socket.emit('sendJunk', {
-    frameId: junk
-  })
-  cameraFPSCounter++
 }
 
 //捕获并发送帧，MediaStream->canvas->webp->压缩->blob
@@ -296,10 +398,11 @@ const sendCamera = () => {
           height: frameInfo.height
         },
         options: options,
-        quality: streamQuality.value
+        quality: streamQuality.value,
+        fps: targetFPS.value
       })
     }
-    reader.readAsArrayBuffer(blob);
+    reader.readAsArrayBuffer(blob)
   }, 'image/webp', 1)
 
   cameraFPSCounter++

@@ -9,7 +9,8 @@ from importlib import import_module
 
 from addict import Dict
 
-BASE_DIR = "ImgDetect/"
+# BASE_DIR = "ImgDetect/"
+BASE_DIR = "图像识别/"
 DEVICE = 'cpu'
 BASE_KEY = '_base_'
 DELETE_KEY = '_delete_'
