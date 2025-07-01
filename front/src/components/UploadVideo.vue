@@ -182,7 +182,7 @@ const initSocket = () => {
             name: '行人', data: smoothData(5, originalData.personCount, 0, true), color: '#79BBFF'
           }, sharedOptions),
           Object.assign({
-            name: '交通标志', data: smoothData(5, originalData.signCount, 0, true), color: '#9FCEFF'
+            name: '交通标志', data: smoothData(5, originalData.signCount, 0, true), color: '#25D5D5'
           }, sharedOptions),
           Object.assign({
             name: '最近距离', data: smoothData(5, originalData.minDistance, 5, false), color: '#F56C6C',
