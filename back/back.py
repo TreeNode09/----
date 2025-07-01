@@ -41,8 +41,8 @@ def handle_upload():
     options = [bool(int(option)) for option in optionsStr.split(',')]
     fps = float(fpsStr)
 
-    video.save("ImgDetect/back/static/test.mp4")
-    # video.save("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/test.mp4")
+    #video.save("ImgDetect/back/static/test.mp4")
+    video.save("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/test.mp4")
     
     global cancelled
     cancelled = False
@@ -107,8 +107,8 @@ def process_video_file(options: list[bool], targetFPS: float):
 
 @app.route('/processed', methods=['GET'])
 def handle_processed():
-    return send_file("C:/专业实训三/ImgDetect/back/static/result.mp4")
-    # return send_file("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/result.mp4")
+    #return send_file("C:/专业实训三/ImgDetect/back/static/result.mp4")
+    return send_file("C:/Users/Stick/Desktop/ImgDetect/图像识别/back/static/result.mp4")
 
 @socketio.on('connect')
 def handle_connect():

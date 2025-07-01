@@ -44,7 +44,7 @@
       </div>
       <div style="width: 40%; display: inline-block; vertical-align: top;">
         <el-checkbox-group v-model="detectOptions" :disabled="isProcessing" style="float: right;">
-          <el-checkbox-button value="road" disabled>车道</el-checkbox-button>
+          <el-checkbox-button value="road" disabled>道路识别</el-checkbox-button>
           <el-checkbox-button value="cp">车辆行人</el-checkbox-button>
           <el-checkbox-button value="sign">交通标志</el-checkbox-button>
         </el-checkbox-group>        
@@ -97,7 +97,7 @@ let frameFPSCounter = 0
 let cameraInterval = null  //记录帧率用的定时器
 let frameInterval = null
 let sendTimes = new Map()
-let options = [false, false, false] //检测选项
+let options = [false, false, false, false] //检测选项
 let totalFrames = 0
 
 let cameraCanvas = null
@@ -306,8 +306,8 @@ const startProcessing = () => {
   updateSocketStat('working', '传输中')
   totalFrames = 0
 
-  if (detectOptions.value.includes('road')) options[0] = true
-  else options[0] = false
+  if (detectOptions.value.includes('road')) options[3] = true
+  else options[3] = false
   if (detectOptions.value.includes('cp')) options[1] = true
   else options[1] = false
   if (detectOptions.value.includes('sign')) options[2] = true

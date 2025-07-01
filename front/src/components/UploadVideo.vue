@@ -39,17 +39,17 @@
       </div>
     </el-upload>
     <div style="margin-top: 10px;">
-      <div style="width: 60%; display: inline-block;">
-        <div class="half"><info-icon><clock/></info-icon> 帧率
+      <div style="width: 45%; display: inline-block;"><info-icon><clock/></info-icon> 帧率
           <el-slider v-model="targetFPS" :min="1" :max="originalFPS" :disabled="uploadStat!=='上传'"
-            style="width: calc(100% - 130px); margin: 0 12px; display: inline-flex; vertical-align: middle;"/>
-          <strong>{{ targetFPS }}</strong>FPS
-        </div>
-        <div class="half"></div>        
+            style="width: calc(100% - 150px); margin: 0 12px; display: inline-flex; vertical-align: middle;"/>
+          <strong>&nbsp;{{ targetFPS }}</strong>FPS   
       </div>
-      <div style="width: 40%; display: inline-block; vertical-align: top;">
+      <div style="width: 55%; display: inline-block; vertical-align: top;">
         <el-checkbox-group v-model="detectOptions" :disabled="uploadStat!=='上传'" style="float: right;">
-          <el-checkbox-button value="road" :class="{'selected': detectOptions.includes('road')}">车道</el-checkbox-button>
+          <el-checkbox-button value="seg" :class="{'selected': detectOptions.includes('seg')}"
+            @click="clearOption('road')">道路分割</el-checkbox-button>
+          <el-checkbox-button value="road" :class="{'selected': detectOptions.includes('road')}"
+            @click="clearOption('seg')">车道识别</el-checkbox-button>
           <el-checkbox-button value="cp" :class="{'selected': detectOptions.includes('cp')}">车辆行人</el-checkbox-button>
           <el-checkbox-button value="sign" :class="{'selected': detectOptions.includes('sign')}">交通标志</el-checkbox-button>
         </el-checkbox-group>        
@@ -86,7 +86,7 @@ const originalFPS = ref(10)
 const detectOptions = ref([])
 
 let socket = null
-let options = [0, 0, 0] //视频文件用flask接收，拿到的是字符串，这样可以直接在Python里转成布尔型
+let options = [0, 0, 0, 0] //视频文件用flask接收，拿到的是字符串，这样可以直接在Python里转成布尔型
 
 let lineChart = null
 let lineAxis = []
@@ -104,6 +104,14 @@ onMounted(() => {
   videoPlayer.value = useTemplateRef('videoPlayer')
   initSocket()
 })
+
+function clearOption(option) {
+  for (let i = 0; i < detectOptions.value.length; i++) {
+    if (detectOptions.value[i] === option) {
+      detectOptions.value.splice(i, 1)
+    }
+  }
+}
 
 const initSocket = () => {
   if (socket) return
@@ -259,12 +267,14 @@ const smoothData = (boxSize, original, offset, toInt) => {
 }
 
 function uploadVideo(item){
-  if (detectOptions.value.includes('road')) options[0] = 1
+  if (detectOptions.value.includes('seg')) options[0] = 1
   else options[0] = 0
-  if (detectOptions.value.includes('cp')) options[1] = 1
+  if (detectOptions.value.includes('road')) options[1] = 1
   else options[1] = 0
-  if (detectOptions.value.includes('sign')) options[2] = 1
+  if (detectOptions.value.includes('cp')) options[2] = 1
   else options[2] = 0
+  if (detectOptions.value.includes('sign')) options[3] = 1
+  else options[3] = 0
 
   let data = new FormData()
   data.append("video", item.file)

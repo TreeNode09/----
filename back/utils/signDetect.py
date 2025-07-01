@@ -1,8 +1,8 @@
 from ultralytics import YOLO
-#from utils.laneUtils import config
+from utils.laneUtils.config import BASE_DIR
 import cv2
 
-model = YOLO('ImgDetect/back/models/sign.pt')
+model = YOLO(BASE_DIR + 'back/models/sign.pt')
 
 
 # classes = ['ph5', 'p26', 'pl40', 'pl60', 'pn', 'i5', 'p11', 'pne', 'pcl', 'pl50', 'pcr', 'w55', 'pl5', 'ph4.5', 
