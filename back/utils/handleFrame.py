@@ -96,23 +96,28 @@ def analyze_data(cp_names: list, sign_names: list, min_distance: float):
 
 def handle_frame(img: cv2.Mat, options: list[bool], fps: float):
     result = img.copy()
+    original_size = result.shape
     cp_names, sign_names, min_distance = [], [], 10000
 
     if options[0] == True:
-        # mask = roadSegmentation.process(img.copy())
-        # mask = cv2.resize(mask, (original_size[1], original_size[0]))
-        # mask = process_mask(mask)  # <--- 加上这行
-        # result = append_mask_to_image(result, mask)
-        coords  = roadSegmentation2.process(img)
-        result = draw_circle(result, coords)
+        mask = roadSegmentation.process(img.copy())
+        mask = cv2.resize(mask, (original_size[1], original_size[0]))
+        mask = process_mask(mask)  # <--- 加上这行
+        result = append_mask_to_image(result, mask)
+
 
     if options[1] == True:
-        cp_boxes, cp_names, speeds, min_distance = carPersonDetect.process(img, fps)
+        cp_boxes, cp_names, speeds, min_distance = carPersonDetect.process(img.copy(), fps)
         result = draw_boxes(result, cp_boxes, cp_names, speeds)
 
     if options[2] == True:
-        sign_boxes, sign_names = signDetect.process(img)
+        sign_boxes, sign_names = signDetect.process(img.copy())
         result = draw_boxes(result, sign_boxes, sign_names, [])
+
+        
+    if options[3] == True:
+        coords  = roadSegmentation2.process(img.copy())
+        result = draw_circle(result, coords)
 
     analyzed = analyze_data(cp_names, sign_names, min_distance)
 
